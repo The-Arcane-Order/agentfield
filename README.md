@@ -178,29 +178,29 @@ cd my-agents
 Haxen uses a **two-layer design**: a stateless **control plane** (like K8s control plane) and independent **agent nodes** (like pods):
 
 ```
-┌───────────────────────────────────────────────────────────────┐
-│                   HAXEN CONTROL PLANE                          │
-│           (Stateless Go Services - Scale Horizontally)         │
-├───────────────────────────────────────────────────────────────┤
-│                                                                │
-│  ┌─────────────────┐ ┌──────────────────┐ ┌────────────────┐ │
-│  │ SCALE           │ │ TRUST &          │ │ PRODUCTION     │ │
-│  │ INFRASTRUCTURE  │ │ GOVERNANCE       │ │ HARDENING      │ │
-│  ├─────────────────┤ ├──────────────────┤ ├────────────────┤ │
-│  │ • Workflow      │ │ • Auto DIDs      │ │ • Workflow     │ │
-│  │   Engine (DAGs) │ │ • Verifiable     │ │   DAGs (UI)    │ │
-│  │ • Execution     │ │   Credentials    │ │ • Prometheus   │ │
-│  │   Queue         │ │ • Audit Trails   │ │   Metrics      │ │
-│  │ • Async +       │ │ • Crypto Proofs  │ │ • Health       │ │
-│  │   Webhooks      │ │ • Policy Engine  │ │   Checks       │ │
-│  │ • Agent         │ │ • Non-           │ │ • Auto         │ │
-│  │   Discovery     │ │   Repudiation    │ │   Retries      │ │
-│  │ • Event         │ │                  │ │ • Zero-Config  │ │
-│  │   Streaming     │ │                  │ │   Memory       │ │
-│  └─────────────────┘ └──────────────────┘ └────────────────┘ │
-│                                                                │
+┌───────────────────────────────────────────────────────────────────┐
+│                   HAXEN CONTROL PLANE                             │
+│           (Stateless Go Services - Scale Horizontally)            │
+├───────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  ┌─────────────────┐ ┌──────────────────┐ ┌────────────────┐      │
+│  │ SCALE           │ │ TRUST &          │ │ PRODUCTION     │      │
+│  │ INFRASTRUCTURE  │ │ GOVERNANCE       │ │ HARDENING      │      │
+│  ├─────────────────┤ ├──────────────────┤ ├────────────────┤      │
+│  │ • Workflow      │ │ • Auto DIDs      │ │ • Workflow     │      │
+│  │   Engine (DAGs) │ │ • Verifiable     │ │   DAGs (UI)    │      │
+│  │ • Execution     │ │   Credentials    │ │ • Prometheus   │      │
+│  │   Queue         │ │ • Audit Trails   │ │   Metrics      │      │
+│  │ • Async +       │ │ • Crypto Proofs  │ │ • Health       │      │
+│  │   Webhooks      │ │ • Policy Engine  │ │   Checks       │      │
+│  │ • Agent         │ │ • Non-           │ │ • Auto         │      │
+│  │   Discovery     │ │   Repudiation    │ │   Retries      │      │
+│  │ • Event         │ │                  │ │ • Zero-Config  │      │
+│  │   Streaming     │ │                  │ │   Memory       │      │
+│  └─────────────────┘ └──────────────────┘ └────────────────┘      │
+│                                                                   │
 │  Deploy independently → Coordinate automatically → Trust built-in │
-└───────────────────────────────────────────────────────────────┘
+└───────────────────────────────────────────────────────────────────┘
        ▲                        ▲                      ▲
        │    REST API / gRPC / WebSocket / HTTP         │
        │    (Language-agnostic communication)          │
