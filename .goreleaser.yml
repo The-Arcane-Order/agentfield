@@ -1,15 +1,16 @@
-project_name: agentfield-control-plane
+# GoReleaser v2 configuration
+version: 2
 
-before:
-  hooks:
-    - npm --prefix control-plane/web/client ci
-    - npm --prefix control-plane/web/client run build
+project_name: agentfield
+
+# Note: Web UI build is handled by GitHub Actions workflow before GoReleaser runs
+# This improves caching and allows for better parallelization
 
 builds:
-  - id: agentfield-control-plane
+  - id: agentfield
     dir: control-plane
-    main: ./cmd/agentfield-server
-    binary: agentfield-server
+    main: ./cmd/af
+    binary: agentfield-{{ .Os }}-{{ .Arch }}
     env:
       - CGO_ENABLED=0
     goos:
@@ -24,25 +25,85 @@ builds:
         goarch: arm64
     ldflags:
       - -s -w
+      - -X main.version={{ .Version }}
+      - -X main.commit={{ .ShortCommit }}
+      - -X main.date={{ .Date }}
+    tags:
+      - embedded
+    no_unique_dist_dir: true
 
+# Don't create archives - ship raw binaries
 archives:
-  - id: agentfield-control-plane
-    builds:
-      - agentfield-control-plane
-    name_template: "{{ .ProjectName }}_{{ .Version }}_{{ .Os }}_{{ .Arch }}"
-    format_overrides:
-      - goos: windows
-        format: zip
-    files:
-      - LICENSE
-      - README.md
-      - control-plane/config/**/*
+  - id: default
+    format: binary
 
 checksum:
-  name_template: "{{ .ProjectName }}_checksums.txt"
+  name_template: "checksums.txt"
+  algorithm: sha256
 
 release:
+  github:
+    owner: Agent-Field
+    name: agentfield
+  draft: false
   prerelease: auto
+  name_template: "AgentField v{{ .Version }}"
+  header: |
+    ## AgentField v{{ .Version }}
+
+    ### Installation
+
+    **macOS & Linux:**
+    ```bash
+    curl -fsSL https://agentfield.ai/install.sh | bash
+    ```
+
+    **Windows:**
+    ```powershell
+    iwr -useb https://agentfield.ai/install.ps1 | iex
+    ```
+
+    ### Version Pinning
+
+    **macOS & Linux:**
+    ```bash
+    VERSION={{ .Version }} curl -fsSL https://agentfield.ai/install.sh | bash
+    ```
+
+    **Windows:**
+    ```powershell
+    $env:VERSION="{{ .Version }}"; iwr -useb https://agentfield.ai/install.ps1 | iex
+    ```
+
+    ### Manual Download
+
+    Download the binary for your platform below, make it executable, and move it to your PATH.
+
+    ### Supported Platforms
+
+    - **macOS Intel:** `agentfield-darwin-amd64`
+    - **macOS Apple Silicon:** `agentfield-darwin-arm64`
+    - **Linux x86_64:** `agentfield-linux-amd64`
+    - **Linux ARM64:** `agentfield-linux-arm64`
+    - **Windows:** `agentfield-windows-amd64.exe`
 
 changelog:
   use: git
+  sort: asc
+  abbrev: 0
+  groups:
+    - title: Features
+      regexp: '^.*?feat(\([[:word:]]+\))??!?:.+$'
+      order: 0
+    - title: Bug Fixes
+      regexp: '^.*?fix(\([[:word:]]+\))??!?:.+$'
+      order: 1
+    - title: Others
+      order: 999
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+      - '^chore:'
+      - '^ci:'
+      - '^style:'
