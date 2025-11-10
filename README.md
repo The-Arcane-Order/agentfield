@@ -43,10 +43,10 @@ curl -fsSL https://agentfield.ai/install.sh | bash && af init my-agents
 **[📚 Full Docs](https://agentfield.ai/docs)** • **[⚡ Quick Start](https://agentfield.ai/docs/quick-start)** • **[🎯 Examples](https://github.com/agentfield/agentfield-examples)**
 
 </td>
-<td width="42%" valign="top">
+<td width="60%" valign="top">
 
 <div align="center">
-<img src="assets/UI.png" alt="AgentField Dashboard - Real-time workflow visualization" width="100%" style="border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" />
+<img src="assets/UI.png" alt="AgentField Dashboard" width="100%" style="border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" />
 
 **👆 Real-time observability, cryptographic audit trails, and many more.. out of the box!**
 </div>
