@@ -19,20 +19,16 @@ Every agent gets **REST/gRPC APIs**, **async execution & webhooks**, **built-in 
 
 ---
 
-<table>
-<tr>
-<td width="58%" valign="top">
-
 ## 🚀 **Ship Production-Ready AI Agents in Minutes**
 
 ✅ **Write agents in Python/Go** (or any language via REST/gRPC)
 
-✅ **Deploy independently** like microservices—zero coordination between teams and services
+✅ **Deploy independently** like microservices—zero coordination between teams
 
 ✅ **Get production infrastructure automatically**:
 - **IAM & cryptographic audit trails** — W3C DIDs + Verifiable Credentials
 - **REST APIs, streaming, async queues** — auto-generated endpoints
-- **Built-in observability & metrics** — Prometheus + Distributed Observability
+- **Built-in observability & metrics** — Prometheus + workflow DAGs
 
 ✅ **Run anywhere**: local dev, Docker, Kubernetes, cloud
 
@@ -41,19 +37,6 @@ curl -fsSL https://agentfield.ai/install.sh | bash && af init my-agents
 ```
 
 **[📚 Full Docs](https://agentfield.ai/docs)** • **[⚡ Quick Start](https://agentfield.ai/docs/quick-start)** • **[🎯 Examples](https://github.com/agentfield/agentfield-examples)**
-
-</td>
-<td width="60%" valign="top">
-
-<div align="center">
-<img src="assets/UI.png" alt="AgentField Dashboard" width="100%" style="border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);" />
-
-**👆 Real-time observability, cryptographic audit trails, and many more.. out of the box!**
-</div>
-
-</td>
-</tr>
-</table>
 
 ---
 
@@ -123,30 +106,37 @@ curl -X POST http://localhost:8080/api/v1/execute/greeting-agent.say_hello \
 
 ## Why AgentField?
 
-Agent frameworks are great for **prototypes**. AgentField builds agents **and** runs them at production scale.
+**TL;DR:** Most agent frameworks are built for prototypes. AgentField is infrastructure for production. If you've tried running multi-agent systems in production, you've hit these problems: agents deployed as a monolith (one team's change redeploys everyone), no proof of what your AI did for auditors, manual service discovery between agents, and building your own queues/webhooks/state management for long running AI nested calls. AgentField ships as a control plane + agent nodes architecture — like Kubernetes for autonomous software. Deploy agents independently, get cryptographic audit trails, and coordinate through zero-config shared memory. Every reasoner becomes a REST endpoint automatically.
 
-### What Hurts Today → What AgentField Does Automatically
+### From Prototype to Production
 
-| 🔴 **Without AgentField**                                      | 🟢 **With AgentField**                                                                      |
-| ------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| **Monolithic deploys** — one team's change redeploys everyone | **Independent deploys** — each agent ships on its own schedule; control plane coordinates  |
-| **DIY orchestration** — queues, async, webhooks, state        | **Built-in orchestration** — durable queues, async + webhooks, shared memory scopes        |
-| **No observability** — grep logs across services              | **Auto-observability** — workflow DAGs, Prometheus metrics, structured logs                |
-| **No identity/audit** — logs can be edited                    | **Cryptographic proof** — DIDs per agent, Verifiable Credentials per execution             |
-| **Fragile communication** — discovery/routing by hand         | **Auto-discovery & context propagation** — `await agent.call("other-agent.fn")`, zero glue |
-| **Ad-hoc APIs** — custom wrappers for frontends               | **REST/OpenAPI by default** — every reasoner is an endpoint (gRPC optional)                |
-
-```
-Traditional Frameworks = Flask (single app)
-AgentField = Kubernetes + Auth0 for AI (distributed infrastructure + identity)
-```
-
-> **AgentField isn't a framework you extend with infrastructure. It IS the infrastructure.**
-
-Bring your own model/tooling; AgentField handles runtime, scale, and proof.
+| Building Without AgentField | Building With AgentField |
+| --------------------------- | ------------------------ |
+| **No cryptographic identity** — agents are names in logs; when regulators ask "prove this AI made this decision," you have editable logs with no tamper-proof record | **DIDs + Verifiable Credentials** — every agent gets a W3C DID; every execution produces a signed VC; export cryptographic proof chains that auditors verify offline with `af verify audit.json` |
+| **Monolithic deployments** — all agents in one codebase; Marketing team's update redeploys Support team's agents; coordination nightmare across teams | **Control plane coordinates independent agents** — each team deploys their agent on their own schedule; discovery/routing/orchestration handled by stateless control plane; zero coordination needed |
+| **Lost context across agent boundaries** — Agent A calls Agent B, you can't trace the full execution; no visibility into multi-agent workflows | **Context propagation built-in** — `workflow_id`, `execution_id`, `session_id` flow automatically through headers; see complete DAG of which agent called which, when, why — distributed tracing without instrumentation |
+| **Manual state management** — set up Redis/database yourself; handle race conditions; write sync logic for agents to share data | **Zero-config shared memory fabric** — `await app.memory.set("key", val)` works across distributed agents; hierarchical scopes (workflow/session/actor/global); real-time change events via `@app.memory.on_change("key")` |
+| **DIY async infrastructure** — implement PostgreSQL queues with `FOR UPDATE SKIP LOCKED`, build webhook delivery with HMAC signing and retries, handle backpressure, graceful shutdown | **Durable execution ships working** — PostgreSQL-backed queues, automatic retries with exponential backoff, HMAC webhook delivery (GitHub-style), fair scheduling, Prometheus metrics, health checks for K8s — no assembly required |
+| **Hardcoded integrations** — manually wire up service discovery; build custom REST wrappers for frontend teams; maintain API gateway; coordinate URLs across deployments | **Auto-discovery + instant APIs** — call any agent via `await app.call("agent.function")`; every `@app.reasoner()` becomes `/api/v1/execute/agent.function` automatically; React/iOS/Android call via HTTP, no SDK needed |
 
 
-What You Get Out-of-the-Box
+## 🎨 See It In Action
+
+<div align="center">
+
+<img src="assets/UI.png" alt="AgentField Dashboard" width="90%" />
+
+<br/>
+
+**Real-time Scaling/Observability • Execution traces • IAM • Verifiable Credentials**
+
+*Everything you need to run production AI agents—built in, zero configuration*
+
+</div>
+
+
+
+## What You Get Out-of-the-Box
 
 🧩 Scale Infrastructure — deploy like microservices
 	•	Durable queues, async webhooks, event streaming
