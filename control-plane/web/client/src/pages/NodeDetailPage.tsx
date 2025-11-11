@@ -837,103 +837,94 @@ function NodeDetailPageContent() {
             className="flex-1 overflow-y-auto"
           >
             <div className="flex flex-col gap-6 px-6 pb-6">
-              <ResponsiveGrid columns={{ base: 1, lg: 12 }} gap="md" align="start">
-                <Card className="lg:col-span-6">
-                  <CardHeader>
-                    <CardTitle>Node Information</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <dl className="grid grid-cols-1 gap-4">
-                      <div>
-                        <dt className="text-sm font-medium text-muted-foreground">
-                          ID
-                        </dt>
-                        <dd className="mt-1">{node.id}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-sm font-medium text-muted-foreground">
-                          Team ID
-                        </dt>
-                        <dd className="mt-1">{node.team_id}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-sm font-medium text-muted-foreground">
-                          Base URL
-                        </dt>
-                        <dd className="mt-1">{node.base_url}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-sm font-medium text-muted-foreground">
-                          Version
-                        </dt>
-                        <dd className="mt-1">{node.version}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-sm font-medium text-muted-foreground">
-                          Last Heartbeat
-                        </dt>
-                        <dd className="mt-1">
-                          {node.last_heartbeat
-                            ? new Date(node.last_heartbeat).toLocaleString()
-                            : "N/A"}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="text-sm font-medium text-muted-foreground">
-                          Registered At
-                        </dt>
-                        <dd className="mt-1">
-                          {node.registered_at
-                            ? new Date(node.registered_at).toLocaleString()
-                            : "N/A"}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="text-sm font-medium text-muted-foreground">
-                          Deployment Type
-                        </dt>
-                        <dd className="mt-1">
-                          {node.deployment_type === "serverless" ? (
-                            <Badge variant="outline" className="flex items-center gap-1">
-                              <Flash className="h-3.5 w-3.5" />
-                              Serverless
-                            </Badge>
-                          ) : (
-                            <Badge variant="outline">Long Running</Badge>
-                          )}
-                        </dd>
-                      </div>
-                      {node.deployment_type === "serverless" && node.invocation_url && (
-                        <div>
-                          <dt className="text-sm font-medium text-muted-foreground">
-                            Invocation URL
-                          </dt>
-                          <dd className="mt-1 break-all font-mono text-sm">
-                            {node.invocation_url}
-                          </dd>
-                        </div>
-                      )}
-                    </dl>
-                  </CardContent>
-                </Card>
-
-                <Card className="lg:col-span-6">
-                  <CardHeader>
-                    <CardTitle>MCP System Status</CardTitle>
-                    <CardDescription>
-                      Model Context Protocol server information
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="py-4 text-center">
-                      <p className="text-muted-foreground">
-                        MCP dashboard components have been removed. Use the MCP
-                        Servers and Tools tabs for detailed information.
-                      </p>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Node Information</CardTitle>
+                  <CardDescription>
+                    Comprehensive details about this agent node
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <dl className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-5">
+                    <div className="space-y-1">
+                      <dt className="text-sm font-medium text-muted-foreground">
+                        Node ID
+                      </dt>
+                      <dd className="text-sm font-mono break-all">{node.id}</dd>
                     </div>
-                  </CardContent>
-                </Card>
-              </ResponsiveGrid>
+
+                    <div className="space-y-1">
+                      <dt className="text-sm font-medium text-muted-foreground">
+                        Team ID
+                      </dt>
+                      <dd className="text-sm">{node.team_id}</dd>
+                    </div>
+
+                    <div className="space-y-1">
+                      <dt className="text-sm font-medium text-muted-foreground">
+                        Version
+                      </dt>
+                      <dd className="text-sm font-mono">{node.version}</dd>
+                    </div>
+
+                    <div className="space-y-1 md:col-span-2">
+                      <dt className="text-sm font-medium text-muted-foreground">
+                        Base URL
+                      </dt>
+                      <dd className="text-sm font-mono break-all">{node.base_url}</dd>
+                    </div>
+
+                    <div className="space-y-1">
+                      <dt className="text-sm font-medium text-muted-foreground">
+                        Deployment Type
+                      </dt>
+                      <dd className="text-sm">
+                        {node.deployment_type === "serverless" ? (
+                          <Badge variant="outline" className="inline-flex items-center gap-1">
+                            <Flash className="h-3.5 w-3.5" />
+                            Serverless
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline">Long Running</Badge>
+                        )}
+                      </dd>
+                    </div>
+
+                    {node.deployment_type === "serverless" && node.invocation_url && (
+                      <div className="space-y-1 md:col-span-2 lg:col-span-3">
+                        <dt className="text-sm font-medium text-muted-foreground">
+                          Invocation URL
+                        </dt>
+                        <dd className="text-sm font-mono break-all bg-muted/50 rounded-md px-3 py-2">
+                          {node.invocation_url}
+                        </dd>
+                      </div>
+                    )}
+
+                    <div className="space-y-1">
+                      <dt className="text-sm font-medium text-muted-foreground">
+                        Last Heartbeat
+                      </dt>
+                      <dd className="text-sm">
+                        {node.last_heartbeat
+                          ? new Date(node.last_heartbeat).toLocaleString()
+                          : "N/A"}
+                      </dd>
+                    </div>
+
+                    <div className="space-y-1">
+                      <dt className="text-sm font-medium text-muted-foreground">
+                        Registered At
+                      </dt>
+                      <dd className="text-sm">
+                        {node.registered_at
+                          ? new Date(node.registered_at).toLocaleString()
+                          : "N/A"}
+                      </dd>
+                    </div>
+                  </dl>
+                </CardContent>
+              </Card>
 
               <ReasonersSkillsTable
                 reasoners={node.reasoners ?? []}
