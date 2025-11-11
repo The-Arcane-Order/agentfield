@@ -170,6 +170,62 @@ async def _execute_with_tracking(func: Callable, *args, **kwargs) -> Any:
     call_kwargs = dict(kwargs or {})
     input_data: Dict[str, Any] = {}
 
+    # Prepare DID-aware execution context so VC generation works for decorator-driven calls
+    did_execution_context = None
+    agent_has_did = getattr(agent_instance, "did_enabled", False) and getattr(
+        agent_instance, "did_manager", None
+    )
+    if agent_has_did:
+        try:
+            session_id = (
+                execution_context.session_id or execution_context.workflow_id
+            )
+            did_execution_context = agent_instance.did_manager.create_execution_context(
+                execution_context.execution_id,
+                execution_context.workflow_id,
+                session_id,
+                "agent",
+                reasoner_name,
+            )
+            if (
+                did_execution_context
+                and hasattr(agent_instance, "_populate_execution_context_with_did")
+            ):
+                agent_instance._populate_execution_context_with_did(
+                    execution_context, did_execution_context
+                )
+        except Exception as exc:  # pragma: no cover - diagnostic only
+            if getattr(agent_instance, "dev_mode", False):
+                log_warn(f"Failed to build DID context for {reasoner_name}: {exc}")
+            did_execution_context = None
+
+    def _maybe_generate_vc(
+        status: str, result_payload: Any, duration_ms: int, error_message: Optional[str]
+    ) -> None:
+        """Fire-and-forget VC generation so decorator parity matches HTTP path."""
+        generate_vc = getattr(agent_instance, "_generate_vc_async", None)
+        vc_generator = getattr(agent_instance, "vc_generator", None)
+        if (
+            did_execution_context
+            and callable(generate_vc)
+            and hasattr(agent_instance, "_should_generate_vc")
+            and agent_instance._should_generate_vc(
+                reasoner_name, getattr(agent_instance, "_reasoner_vc_overrides", {})
+            )
+        ):
+            asyncio.create_task(
+                generate_vc(
+                    vc_generator,
+                    did_execution_context,
+                    reasoner_name,
+                    input_data,
+                    result_payload,
+                    status=status,
+                    error_message=error_message,
+                    duration_ms=duration_ms,
+                )
+            )
+
     try:
         # Execute function with new context
         token = set_execution_context(execution_context)
@@ -233,6 +289,7 @@ async def _execute_with_tracking(func: Callable, *args, **kwargs) -> Any:
                 completion_payload,
             )
         )
+        _maybe_generate_vc("success", result, duration_ms, None)
         return result
     except Exception as exc:
         duration_ms = int((time.time() - start_time) * 1000)
@@ -240,6 +297,7 @@ async def _execute_with_tracking(func: Callable, *args, **kwargs) -> Any:
             "input_data": input_data,
             "parent_execution_id": parent_execution_id,
         }
+        _maybe_generate_vc("error", None, duration_ms, str(exc))
         await asyncio.create_task(
             _send_workflow_error(
                 agent_instance,
