@@ -1,0 +1,110 @@
+"""Ingestion reasoners for the documentation chatbot."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import List
+
+from agentfield import AgentRouter
+from agentfield.logger import log_info
+
+from chunking import chunk_markdown_text, is_supported_file, read_text
+from embedding import embed_texts
+from schemas import IngestReport
+
+ingestion_router = AgentRouter(tags=["ingestion"])
+
+
+@ingestion_router.reasoner()
+async def ingest_folder(
+    folder_path: str,
+    namespace: str = "documentation",
+    glob_pattern: str = "**/*",
+    chunk_size: int = 1200,
+    chunk_overlap: int = 250,
+) -> IngestReport:
+    """
+    Chunk + embed every supported file inside ``folder_path``.
+
+    Uses two-tier storage:
+    1. Store full document text ONCE in regular memory
+    2. Store chunk vectors with reference to document
+    """
+
+    root = Path(folder_path).expanduser().resolve()
+    if not root.exists() or not root.is_dir():
+        raise FileNotFoundError(f"Folder not found: {folder_path}")
+
+    files = sorted(p for p in root.glob(glob_pattern) if p.is_file())
+    supported_files = [p for p in files if is_supported_file(p)]
+    skipped = [p.as_posix() for p in files if not is_supported_file(p)]
+
+    if not supported_files:
+        return IngestReport(
+            namespace=namespace, file_count=0, chunk_count=0, skipped_files=skipped
+        )
+
+    global_memory = ingestion_router.memory.global_scope
+
+    total_chunks = 0
+    for file_path in supported_files:
+        relative_path = file_path.relative_to(root).as_posix()
+        try:
+            full_text = read_text(file_path)
+        except Exception as exc:  # pragma: no cover - defensive
+            skipped.append(f"{relative_path} (error: {exc})")
+            continue
+
+        # TIER 1: Store full document ONCE
+        document_key = f"{namespace}:doc:{relative_path}"
+        await global_memory.set(
+            key=document_key,
+            data={
+                "full_text": full_text,
+                "relative_path": relative_path,
+                "namespace": namespace,
+                "file_size": len(full_text),
+            },
+        )
+
+        # Create chunks
+        doc_chunks = chunk_markdown_text(
+            full_text,
+            relative_path=relative_path,
+            namespace=namespace,
+            chunk_size=chunk_size,
+            overlap=chunk_overlap,
+        )
+        if not doc_chunks:
+            continue
+
+        # TIER 2: Store chunk vectors with document reference
+        embeddings = embed_texts([chunk.text for chunk in doc_chunks])
+        for idx, (chunk, embedding) in enumerate(zip(doc_chunks, embeddings)):
+            vector_key = f"{namespace}|{chunk.chunk_id}"
+            metadata = {
+                "text": chunk.text,
+                "namespace": namespace,
+                "relative_path": chunk.relative_path,
+                "section": chunk.section,
+                "start_line": chunk.start_line,
+                "end_line": chunk.end_line,
+                "document_key": document_key,
+                "chunk_index": idx,
+                "total_chunks": len(doc_chunks),
+            }
+            await global_memory.set_vector(
+                key=vector_key, embedding=embedding, metadata=metadata
+            )
+            total_chunks += 1
+
+    log_info(
+        f"Ingested {total_chunks} chunks from {len(supported_files)} files into namespace '{namespace}'"
+    )
+
+    return IngestReport(
+        namespace=namespace,
+        file_count=len(supported_files),
+        chunk_count=total_chunks,
+        skipped_files=skipped,
+    )
