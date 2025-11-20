@@ -172,3 +172,68 @@ async def execute_research_task(
         sources=sources,
         confidence=findings_response.confidence,
     )
+
+
+@research_router.reasoner()
+async def synthesize_from_dependencies(
+    task_id: str,
+    task_description: str,
+    research_question: str,
+    dependency_findings: List[TaskResult],
+) -> TaskResult:
+    """
+    Synthesize answer for a parent task from its children's findings.
+
+    This is for tasks that have dependencies - they synthesize from
+    child task answers rather than searching the web.
+    """
+    # Format dependency findings for the prompt
+    children_text = "\n\n".join(
+        f"Child Task {idx + 1} ({dep.task_id}): {dep.description}\n"
+        f"Answer: {dep.findings}\n"
+        f"Sources: {', '.join(dep.sources) if dep.sources else 'N/A'}"
+        for idx, dep in enumerate(dependency_findings)
+    )
+
+    response = await research_router.ai(
+        system=(
+            "You are answering a PARENT TASK by synthesizing answers from child tasks.\n\n"
+            "## CONTEXT\n"
+            "This is a parent task - it depends on child tasks that have already been answered.\n"
+            "Your job is to combine the child answers to answer the parent question.\n\n"
+            "## IMPORTANT\n"
+            "- Do NOT search the web - use ONLY the provided child findings\n"
+            "- Synthesize and combine the child answers\n"
+            "- Create a coherent answer to the parent question\n"
+            "- Reference which child tasks contributed to each point\n\n"
+            "## OUTPUT FORMAT\n"
+            "Provide a structured answer with numbered points.\n"
+            "Reference child tasks like: 'Based on Child Task 1, ...'\n"
+            "Assess confidence based on completeness of child answers."
+        ),
+        user=(
+            f"Research Question: {research_question}\n\n"
+            f"Parent Task: {task_description}\n\n"
+            f"Child Task Answers:\n{children_text}\n\n"
+            f"Synthesize an answer to the parent task by combining the child task findings. "
+            f"Do not search - use only the provided child answers."
+        ),
+        schema=ResearchFindings,
+    )
+
+    # Collect sources from all dependencies
+    all_sources = []
+    for dep in dependency_findings:
+        all_sources.extend(dep.sources)
+
+    # Add references to child tasks
+    child_refs = [f"Child task {dep.task_id}" for dep in dependency_findings]
+    all_sources.extend(child_refs)
+
+    return TaskResult(
+        task_id=task_id,
+        description=task_description,
+        findings=response.findings,
+        sources=list(set(all_sources)),  # Deduplicate
+        confidence=response.confidence,
+    )
