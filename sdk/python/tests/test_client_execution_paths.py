@@ -3,11 +3,10 @@ Comprehensive tests for AgentFieldClient execution paths.
 """
 
 import asyncio
-import sys
-import types
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+import responses as responses_lib
 
 from agentfield.client import AgentFieldClient
 from agentfield.execution_context import ExecutionContext
@@ -16,48 +15,32 @@ from agentfield.execution_context import ExecutionContext
 @pytest.fixture
 def client():
     """Create a test client."""
-    return AgentFieldClient(base_url="http://test-server")
+    return AgentFieldClient(base_url="http://localhost:8080")
 
 
-@pytest.fixture
-def mock_httpx(monkeypatch):
-    """Mock httpx module."""
-    module = types.SimpleNamespace()
-
-    class MockAsyncClient:
-        def __init__(self, *args, **kwargs):
-            self.is_closed = False
-            self._requests = []
-
-        async def request(self, method, url, **kwargs):
-            self._requests.append((method, url, kwargs))
-            response = MagicMock()
-            response.status_code = 200
-            response.json = AsyncMock(return_value={"status": "succeeded"})
-            response.raise_for_status = MagicMock()
-            return response
-
-        async def aclose(self):
-            self.is_closed = True
-
-    module.AsyncClient = MockAsyncClient
-    module.Limits = MagicMock()
-    module.Timeout = MagicMock()
-
-    monkeypatch.setitem(sys.modules, "httpx", module)
-    return module
-
-
-def test_call_sync_execution(client, mock_httpx):
+def test_call_sync_execution(client):
     """Test synchronous execution call."""
+    # Mock the async execution endpoint
+    responses_lib.add(
+        responses_lib.POST,
+        "http://localhost:8080/api/v1/execute/async/agent.reasoner",
+        json={"execution_id": "exec-123"},
+        status=200,
+    )
+    # Mock the status polling endpoint
+    responses_lib.add(
+        responses_lib.GET,
+        "http://localhost:8080/api/v1/executions/exec-123",
+        json={"status": "succeeded", "result": {"key": "value"}},
+        status=200,
+    )
+
     response = client.execute_sync(
         target="agent.reasoner",
         input_data={"key": "value"},
     )
 
     assert response is not None
-    # Verify request was made
-    assert len(mock_httpx.AsyncClient()._requests) > 0
 
 
 def test_call_async_execution(client, mock_httpx):

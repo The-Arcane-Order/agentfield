@@ -10,27 +10,46 @@ import (
 
 	"github.com/Agent-Field/agentfield/control-plane/internal/events"
 	"github.com/Agent-Field/agentfield/control-plane/internal/storage"
-	"github.com/Agent-Field/agentfield/control-plane/pkg/types"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
+// setupTestStorage creates a real storage instance for testing
+func setupTestStorage(t *testing.T) storage.StorageProvider {
+	t.Helper()
+	ctx := context.Background()
+	tempDir := t.TempDir()
+	cfg := storage.StorageConfig{
+		Mode: "local",
+		Local: storage.LocalStorageConfig{
+			DatabasePath: tempDir + "/test.db",
+			KVStorePath:  tempDir + "/test.bolt",
+		},
+	}
+
+	realStorage := storage.NewLocalStorage(storage.LocalStorageConfig{})
+	err := realStorage.Initialize(ctx, cfg)
+	if err != nil && strings.Contains(strings.ToLower(err.Error()), "fts5") {
+		t.Skip("sqlite3 compiled without FTS5")
+	}
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		realStorage.Close(ctx)
+	})
+	return realStorage
+}
+
 // TestStreamExecutionEventsHandler tests the execution events SSE endpoint
-// This test works without a server by testing the handler directly with mock storage
+// This test works without a server by testing the handler directly with real storage
 func TestStreamExecutionEventsHandler(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	// Create a real event bus (lightweight, no server needed)
-	eventBus := events.NewExecutionEventBus()
+	realStorage := setupTestStorage(t)
+	eventBus := realStorage.GetExecutionEventBus()
 
-	// Create mock storage that returns our event bus
-	mockStorage := &MockStorageProvider{}
-	mockStorage.On("GetExecutionEventBus").Return(eventBus)
-
-	handler := NewExecutionHandler(mockStorage, nil, nil)
+	handler := NewExecutionHandler(realStorage, nil, nil)
 	router := gin.New()
 	router.GET("/api/ui/v1/executions/events", handler.StreamExecutionEventsHandler)
 
@@ -76,18 +95,15 @@ func TestStreamExecutionEventsHandler(t *testing.T) {
 		// Handler may still be running, that's okay for SSE
 	}
 
-	mockStorage.AssertExpectations(t)
+	// Real storage doesn't need expectations
 }
 
 // TestStreamExecutionEventsHandler_Headers tests that SSE headers are set correctly
 func TestStreamExecutionEventsHandler_Headers(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	eventBus := events.NewExecutionEventBus()
-	mockStorage := &MockStorageProvider{}
-	mockStorage.On("GetExecutionEventBus").Return(eventBus)
-
-	handler := NewExecutionHandler(mockStorage, nil, nil)
+	realStorage := setupTestStorage(t)
+	handler := NewExecutionHandler(realStorage, nil, nil)
 	router := gin.New()
 	router.GET("/api/ui/v1/executions/events", handler.StreamExecutionEventsHandler)
 
@@ -116,11 +132,8 @@ func TestStreamExecutionEventsHandler_Headers(t *testing.T) {
 func TestSSEConnectionLifecycle(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	eventBus := events.NewExecutionEventBus()
-	mockStorage := &MockStorageProvider{}
-	mockStorage.On("GetExecutionEventBus").Return(eventBus)
-
-	handler := NewExecutionHandler(mockStorage, nil, nil)
+	realStorage := setupTestStorage(t)
+	handler := NewExecutionHandler(realStorage, nil, nil)
 	router := gin.New()
 	router.GET("/api/ui/v1/executions/events", handler.StreamExecutionEventsHandler)
 
@@ -155,11 +168,9 @@ func TestSSEConnectionLifecycle(t *testing.T) {
 func TestSSEEventDelivery(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	eventBus := events.NewExecutionEventBus()
-	mockStorage := &MockStorageProvider{}
-	mockStorage.On("GetExecutionEventBus").Return(eventBus)
-
-	handler := NewExecutionHandler(mockStorage, nil, nil)
+	realStorage := setupTestStorage(t)
+	eventBus := realStorage.GetExecutionEventBus()
+	handler := NewExecutionHandler(realStorage, nil, nil)
 	router := gin.New()
 	router.GET("/api/ui/v1/executions/events", handler.StreamExecutionEventsHandler)
 
@@ -199,18 +210,15 @@ func TestSSEEventDelivery(t *testing.T) {
 	case <-time.After(200 * time.Millisecond):
 	}
 
-	mockStorage.AssertExpectations(t)
+	// Real storage doesn't need expectations
 }
 
 // TestSSEHeartbeatMechanism tests that heartbeats keep connection alive
 func TestSSEHeartbeatMechanism(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	eventBus := events.NewExecutionEventBus()
-	mockStorage := &MockStorageProvider{}
-	mockStorage.On("GetExecutionEventBus").Return(eventBus)
-
-	handler := NewExecutionHandler(mockStorage, nil, nil)
+	realStorage := setupTestStorage(t)
+	handler := NewExecutionHandler(realStorage, nil, nil)
 	router := gin.New()
 	router.GET("/api/ui/v1/executions/events", handler.StreamExecutionEventsHandler)
 
@@ -246,11 +254,9 @@ func TestSSEHeartbeatMechanism(t *testing.T) {
 func TestSSEMultipleConnections(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	eventBus := events.NewExecutionEventBus()
-	mockStorage := &MockStorageProvider{}
-	mockStorage.On("GetExecutionEventBus").Return(eventBus).Times(3) // Called for each connection
-
-	handler := NewExecutionHandler(mockStorage, nil, nil)
+	realStorage := setupTestStorage(t)
+	eventBus := realStorage.GetExecutionEventBus()
+	handler := NewExecutionHandler(realStorage, nil, nil)
 	router := gin.New()
 	router.GET("/api/ui/v1/executions/events", handler.StreamExecutionEventsHandler)
 
@@ -310,11 +316,8 @@ func TestSSEErrorHandling(t *testing.T) {
 func TestSSERequestValidation(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	eventBus := events.NewExecutionEventBus()
-	mockStorage := &MockStorageProvider{}
-	mockStorage.On("GetExecutionEventBus").Return(eventBus)
-
-	handler := NewExecutionHandler(mockStorage, nil, nil)
+	realStorage := setupTestStorage(t)
+	handler := NewExecutionHandler(realStorage, nil, nil)
 	router := gin.New()
 	router.GET("/api/ui/v1/executions/events", handler.StreamExecutionEventsHandler)
 
@@ -350,11 +353,8 @@ func TestSSERequestValidation(t *testing.T) {
 func TestSSEContextCancellation(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	eventBus := events.NewExecutionEventBus()
-	mockStorage := &MockStorageProvider{}
-	mockStorage.On("GetExecutionEventBus").Return(eventBus)
-
-	handler := NewExecutionHandler(mockStorage, nil, nil)
+	realStorage := setupTestStorage(t)
+	handler := NewExecutionHandler(realStorage, nil, nil)
 	router := gin.New()
 	router.GET("/api/ui/v1/executions/events", handler.StreamExecutionEventsHandler)
 
@@ -389,11 +389,9 @@ func TestSSEContextCancellation(t *testing.T) {
 func TestSSEConcurrentEvents(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	eventBus := events.NewExecutionEventBus()
-	mockStorage := &MockStorageProvider{}
-	mockStorage.On("GetExecutionEventBus").Return(eventBus)
-
-	handler := NewExecutionHandler(mockStorage, nil, nil)
+	realStorage := setupTestStorage(t)
+	eventBus := realStorage.GetExecutionEventBus()
+	handler := NewExecutionHandler(realStorage, nil, nil)
 	router := gin.New()
 	router.GET("/api/ui/v1/executions/events", handler.StreamExecutionEventsHandler)
 
@@ -449,11 +447,8 @@ func verifySSEHeaders(t *testing.T, resp *httptest.ResponseRecorder) {
 func TestSSEResponseFormat(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	eventBus := events.NewExecutionEventBus()
-	mockStorage := &MockStorageProvider{}
-	mockStorage.On("GetExecutionEventBus").Return(eventBus)
-
-	handler := NewExecutionHandler(mockStorage, nil, nil)
+	realStorage := setupTestStorage(t)
+	handler := NewExecutionHandler(realStorage, nil, nil)
 	router := gin.New()
 	router.GET("/api/ui/v1/executions/events", handler.StreamExecutionEventsHandler)
 
@@ -483,11 +478,8 @@ func TestSSEResponseFormat(t *testing.T) {
 func TestSSEWithQueryParameters(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	eventBus := events.NewExecutionEventBus()
-	mockStorage := &MockStorageProvider{}
-	mockStorage.On("GetExecutionEventBus").Return(eventBus)
-
-	handler := NewExecutionHandler(mockStorage, nil, nil)
+	realStorage := setupTestStorage(t)
+	handler := NewExecutionHandler(realStorage, nil, nil)
 	router := gin.New()
 	router.GET("/api/ui/v1/executions/events", handler.StreamExecutionEventsHandler)
 
@@ -512,11 +504,8 @@ func TestSSEWithQueryParameters(t *testing.T) {
 func TestSSEConnectionReuse(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	eventBus := events.NewExecutionEventBus()
-	mockStorage := &MockStorageProvider{}
-	mockStorage.On("GetExecutionEventBus").Return(eventBus).Maybe()
-
-	handler := NewExecutionHandler(mockStorage, nil, nil)
+	realStorage := setupTestStorage(t)
+	handler := NewExecutionHandler(realStorage, nil, nil)
 	router := gin.New()
 	router.GET("/api/ui/v1/executions/events", handler.StreamExecutionEventsHandler)
 
@@ -548,11 +537,8 @@ func TestSSEConnectionReuse(t *testing.T) {
 func TestSSEWithInvalidStorage(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	// Create a mock that returns nil event bus
-	mockStorage := &MockStorageProvider{}
-	mockStorage.On("GetExecutionEventBus").Return((*events.ExecutionEventBus)(nil))
-
-	handler := NewExecutionHandler(mockStorage, nil, nil)
+	// Test with nil storage (should handle gracefully)
+	handler := NewExecutionHandler(nil, nil, nil)
 	router := gin.New()
 	router.GET("/api/ui/v1/executions/events", handler.StreamExecutionEventsHandler)
 
@@ -572,11 +558,9 @@ func TestSSEWithInvalidStorage(t *testing.T) {
 func TestSSEPerformance(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
-	eventBus := events.NewExecutionEventBus()
-	mockStorage := &MockStorageProvider{}
-	mockStorage.On("GetExecutionEventBus").Return(eventBus)
-
-	handler := NewExecutionHandler(mockStorage, nil, nil)
+	realStorage := setupTestStorage(t)
+	eventBus := realStorage.GetExecutionEventBus()
+	handler := NewExecutionHandler(realStorage, nil, nil)
 	router := gin.New()
 	router.GET("/api/ui/v1/executions/events", handler.StreamExecutionEventsHandler)
 

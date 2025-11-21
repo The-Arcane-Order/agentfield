@@ -35,11 +35,11 @@ def mock_result_cache():
 def async_config():
     """Create a test async config."""
     return AsyncConfig(
-        poll_interval=0.1,
-        max_concurrent_polls=5,
-        batch_poll_size=10,
+        initial_poll_interval=0.1,
+        fast_poll_interval=0.1,
+        max_active_polls=5,
+        batch_size=10,
         cleanup_interval=1.0,
-        max_execution_age=3600,
     )
 
 

@@ -103,12 +103,12 @@ async def test_ai_request_building_with_different_models(monkeypatch, agent_with
 
     # Test with default model
     result = await ai.ai("test prompt")
-    assert result == "test response"
+    assert result.text == "test response"
     assert litellm_module.acompletion.called
 
     # Test with custom model
     result = await ai.ai("test prompt", model="claude-3-opus")
-    assert result == "test response"
+    assert result.text == "test response"
     call_args = litellm_module.acompletion.call_args
     assert call_args[1]["model"] == "claude-3-opus"
 
@@ -123,7 +123,7 @@ async def test_ai_response_parsing_and_error_handling(monkeypatch, agent_with_ai
     # Test successful response
     litellm_module.acompletion.return_value = make_chat_response("success")
     result = await ai.ai("test")
-    assert result == "success"
+    assert result.text == "success"
 
     # Test error response
     litellm_module.acompletion.side_effect = Exception("API error")
@@ -162,7 +162,7 @@ async def test_ai_multimodal_input_processing(monkeypatch, agent_with_ai):
 
     # Test with image URL
     result = await ai.ai("https://example.com/image.jpg", "What's in this image?")
-    assert result == "image analyzed"
+    assert result.text == "image analyzed"
 
     # Verify messages were constructed correctly
     call_args = litellm_module.acompletion.call_args
@@ -196,7 +196,7 @@ async def test_ai_error_recovery_and_retry(monkeypatch, agent_with_ai):
     litellm_module.acompletion.side_effect = rate_limit_then_success
 
     result = await ai.ai("test")
-    assert result == "success after retry"
+    assert result.text == "success after retry"
     assert call_count == 2
 
 
@@ -235,7 +235,7 @@ async def test_ai_with_memory_injection(monkeypatch, agent_with_ai):
     ai = AgentAI(agent_with_ai)
     result = await ai.ai("test", memory_scope=["workflow", "session"])
 
-    assert result == "response"
+    assert result.text == "response"
     # Verify memory was accessed
     assert agent_with_ai.memory.get.called or agent_with_ai.memory.get_all.called
 
@@ -250,7 +250,7 @@ async def test_ai_with_context_parameter(monkeypatch, agent_with_ai):
     context = {"user_id": "123", "session_id": "abc"}
 
     result = await ai.ai("test", context=context)
-    assert result == "response"
+    assert result.text == "response"
 
     # Verify context was passed to litellm
     call_args = litellm_module.acompletion.call_args
@@ -262,6 +262,12 @@ async def test_ai_model_limits_caching(monkeypatch, agent_with_ai):
     """Test that model limits are cached on first call."""
     litellm_module = setup_litellm_stub(monkeypatch)
     litellm_module.acompletion.return_value = make_chat_response("response")
+
+    # Mock get_model_limits to track calls
+    original_get_model_limits = agent_with_ai.ai_config.get_model_limits
+    agent_with_ai.ai_config.get_model_limits = AsyncMock(
+        side_effect=original_get_model_limits
+    )
 
     ai = AgentAI(agent_with_ai)
 
@@ -285,13 +291,13 @@ async def test_ai_fallback_models(monkeypatch, agent_with_ai):
         return make_chat_response("fallback success")
 
     litellm_module.acompletion.side_effect = fail_then_succeed
-    agent_with_ai.ai_config.fallback_models = ["fallback-model-1"]
+    agent_with_ai.ai_config.fallback_models = ["openai/gpt-3.5-turbo"]
 
     ai = AgentAI(agent_with_ai)
 
     # Should try fallback model
     result = await ai.ai("test")
-    assert result == "fallback success"
+    assert result.text == "fallback success"
     assert call_count == 2
 
 
