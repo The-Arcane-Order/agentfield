@@ -1,10 +1,9 @@
-
 import asyncio
 import pytest
 import httpx
 import time
 from agentfield.agent import Agent
-from agentfield.client import AgentFieldClient
+
 
 # Mock the client to avoid network calls
 @pytest.fixture
@@ -12,11 +11,15 @@ def mock_client(monkeypatch):
     class MockClient:
         def __init__(self, *args, **kwargs):
             pass
+
         async def _async_request(self, *args, **kwargs):
-             class MockResponse:
+            class MockResponse:
                 status_code = 200
-                def json(self): return {}
-             return MockResponse()
+
+                def json(self):
+                    return {}
+
+            return MockResponse()
 
         async def notify_graceful_shutdown_sync(self, *args, **kwargs):
             return True
@@ -28,7 +31,10 @@ def mock_client(monkeypatch):
     monkeypatch.setattr("agentfield.client.AgentFieldClient", MockClient)
 
     # Also mock AgentUtils.is_port_available to avoid binding issues
-    monkeypatch.setattr("agentfield.agent_utils.AgentUtils.is_port_available", lambda p: True)
+    monkeypatch.setattr(
+        "agentfield.agent_utils.AgentUtils.is_port_available", lambda p: True
+    )
+
 
 @pytest.fixture
 def resilient_agent(mock_client):
@@ -37,9 +43,10 @@ def resilient_agent(mock_client):
         agentfield_server="http://mock-control-plane",
         auto_register=False,
         dev_mode=True,
-        async_config=None # Use defaults
+        async_config=None,  # Use defaults
     )
     return agent
+
 
 @pytest.mark.asyncio
 async def test_concurrent_execution_resilience(resilient_agent):
@@ -50,7 +57,9 @@ async def test_concurrent_execution_resilience(resilient_agent):
         await asyncio.sleep(0.1)
         return {"value": value}
 
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=resilient_agent), base_url="http://test") as client:
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=resilient_agent), base_url="http://test"
+    ) as client:
         # Fire 50 requests concurrently
         tasks = []
         num_requests = 50
@@ -74,6 +83,7 @@ async def test_concurrent_execution_resilience(resilient_agent):
         print(f"Duration for {num_requests} requests: {duration}s")
         assert duration < 2.0, f"Concurrency check failed, took {duration}s"
 
+
 @pytest.mark.asyncio
 async def test_error_containment(resilient_agent):
     """Test that a crashing reasoner doesn't bring down the agent."""
@@ -86,7 +96,10 @@ async def test_error_containment(resilient_agent):
     async def ping():
         return {"status": "ok"}
 
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=resilient_agent, raise_app_exceptions=False), base_url="http://test") as client:
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=resilient_agent, raise_app_exceptions=False),
+        base_url="http://test",
+    ) as client:
         # 1. Call the crashing endpoint
         # FastAPI usually catches exceptions and returns 500
         response = await client.post("/reasoners/crasher", json={})
@@ -97,6 +110,7 @@ async def test_error_containment(resilient_agent):
         assert resp2.status_code == 200
         assert resp2.json() == {"status": "ok"}
 
+
 @pytest.mark.asyncio
 async def test_input_validation_resilience(resilient_agent):
     """Test that malformed inputs are handled gracefully."""
@@ -105,16 +119,23 @@ async def test_input_validation_resilience(resilient_agent):
     async def typed_input(x: int, y: str) -> dict:
         return {"result": f"{y}-{x}"}
 
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=resilient_agent), base_url="http://test") as client:
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=resilient_agent), base_url="http://test"
+    ) as client:
         # 1. Missing fields
         resp = await client.post("/reasoners/typed_input", json={"x": 1})
         assert resp.status_code == 422  # Validation error
 
         # 2. Wrong types
-        resp = await client.post("/reasoners/typed_input", json={"x": "not-int", "y": "ok"})
+        resp = await client.post(
+            "/reasoners/typed_input", json={"x": "not-int", "y": "ok"}
+        )
         assert resp.status_code == 422
 
         # 3. Malformed JSON
-        resp = await client.post("/reasoners/typed_input", content="{ bad json }", headers={"Content-Type": "application/json"})
+        resp = await client.post(
+            "/reasoners/typed_input",
+            content="{ bad json }",
+            headers={"Content-Type": "application/json"},
+        )
         assert resp.status_code == 400 or resp.status_code == 422
-
