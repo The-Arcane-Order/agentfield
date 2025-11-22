@@ -84,6 +84,7 @@ type EnhancedVCChain struct {
 	CompletedExecutions  int                          `json:"completed_executions"`
 	WorkflowStatus       string                       `json:"workflow_status"`
 	ExecutionVCs         []types.ExecutionVC          `json:"execution_vcs"`
+	ComponentVCs         []types.ExecutionVC          `json:"component_vcs,omitempty"`
 	WorkflowVC           types.WorkflowVC             `json:"workflow_vc"`
 	DIDResolutionBundle  map[string]DIDResolutionInfo `json:"did_resolution_bundle,omitempty"`
 	VerificationMetadata VerificationMetadata         `json:"verification_metadata,omitempty"`
@@ -183,6 +184,7 @@ func verifyVC(vcFilePath string, options VerifyOptions) error {
 	step2 := VerificationStep{Step: 2, Description: "Parsing VC structure"}
 	var enhancedChain EnhancedVCChain
 	if err := json.Unmarshal(vcData, &enhancedChain); err == nil && enhancedChain.WorkflowID != "" {
+		normalizeEnhancedChain(&enhancedChain)
 		// Enhanced VC chain with DID resolution bundle
 		step2.Success = true
 		step2.Details = fmt.Sprintf("Parsed enhanced VC chain with %d execution VCs", len(enhancedChain.ExecutionVCs))
@@ -200,6 +202,7 @@ func verifyVC(vcFilePath string, options VerifyOptions) error {
 			result.FormatValid = true
 			// Convert to enhanced format
 			enhancedChain = convertLegacyChain(workflowChain)
+			normalizeEnhancedChain(&enhancedChain)
 		} else {
 			step2.Success = false
 			step2.Error = "Invalid VC format: not a recognized AgentField VC structure"
@@ -583,7 +586,35 @@ func convertLegacyChain(legacy types.WorkflowVCChainResponse) EnhancedVCChain {
 		CompletedExecutions: len(legacy.ComponentVCs),
 		WorkflowStatus:      legacy.Status,
 		ExecutionVCs:        legacy.ComponentVCs,
+		ComponentVCs:        legacy.ComponentVCs,
 		WorkflowVC:          legacy.WorkflowVC,
+	}
+}
+
+func normalizeEnhancedChain(chain *EnhancedVCChain) {
+	if chain == nil {
+		return
+	}
+
+	// Keep both execution/component aliases in sync for backwards compatibility
+	switch {
+	case len(chain.ExecutionVCs) == 0 && len(chain.ComponentVCs) > 0:
+		chain.ExecutionVCs = chain.ComponentVCs
+	case len(chain.ComponentVCs) == 0 && len(chain.ExecutionVCs) > 0:
+		chain.ComponentVCs = chain.ExecutionVCs
+	}
+
+	// Populate counts if omitted
+	if chain.TotalExecutions == 0 {
+		chain.TotalExecutions = len(chain.ExecutionVCs)
+	}
+	if chain.CompletedExecutions == 0 {
+		chain.CompletedExecutions = len(chain.ExecutionVCs)
+	}
+
+	// Default workflow status from workflow VC if empty
+	if chain.WorkflowStatus == "" && chain.WorkflowVC.Status != "" {
+		chain.WorkflowStatus = chain.WorkflowVC.Status
 	}
 }
 

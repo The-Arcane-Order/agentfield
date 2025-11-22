@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"log"
 	"sync"
 
 	"github.com/Agent-Field/agentfield/control-plane/internal/storage"
@@ -373,7 +374,8 @@ func (r *DIDRegistry) saveRegistryToDatabase(registry *types.DIDRegistry) error 
 				return fmt.Errorf("foreign key constraint violation for agent %s: %w", agentInfo.AgentNodeID, fkErr)
 			}
 			if dupErr, ok := err.(*storage.DuplicateDIDError); ok {
-				return fmt.Errorf("duplicate DID detected for agent %s: %w", agentInfo.AgentNodeID, dupErr)
+				log.Printf("Skipping duplicate DID entry during registry sync: %s (agent=%s)", dupErr.DID, agentInfo.AgentNodeID)
+				continue
 			}
 			return fmt.Errorf("failed to store agent DID %s with components: %w", agentInfo.AgentNodeID, err)
 		}

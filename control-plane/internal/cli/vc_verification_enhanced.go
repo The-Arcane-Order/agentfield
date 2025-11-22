@@ -53,6 +53,7 @@ type ComprehensiveVerificationResult struct {
 type WorkflowVerification struct {
 	WorkflowID           string              `json:"workflow_id"`
 	Valid                bool                `json:"valid"`
+	SignatureValid       bool                `json:"signature_valid"`
 	ComponentConsistency bool                `json:"component_consistency"`
 	TimestampConsistency bool                `json:"timestamp_consistency"`
 	StatusConsistency    bool                `json:"status_consistency"`
@@ -118,6 +119,9 @@ func (v *EnhancedVCVerifier) VerifyEnhancedVCChain(chain EnhancedVCChain) *Compr
 	// 2. Verify workflow VC if present
 	if chain.WorkflowVC.VCDocument != nil {
 		result.WorkflowVerification = v.verifyWorkflowVC(chain.WorkflowVC, chain.ExecutionVCs)
+		if result.WorkflowVerification != nil && !result.WorkflowVerification.Valid {
+			result.CriticalIssues = append(result.CriticalIssues, result.WorkflowVerification.Issues...)
+		}
 	}
 
 	// 3. Perform integrity checks
@@ -265,9 +269,10 @@ func (v *EnhancedVCVerifier) verifyExecutionVCComprehensive(execVC types.Executi
 // verifyWorkflowVC performs comprehensive verification of workflow VC
 func (v *EnhancedVCVerifier) verifyWorkflowVC(workflowVC types.WorkflowVC, executionVCs []types.ExecutionVC) *WorkflowVerification {
 	result := &WorkflowVerification{
-		WorkflowID: workflowVC.WorkflowID,
-		Valid:      true,
-		Issues:     []VerificationIssue{},
+		WorkflowID:     workflowVC.WorkflowID,
+		Valid:          true,
+		SignatureValid: true,
+		Issues:         []VerificationIssue{},
 	}
 
 	// Parse workflow VC document
@@ -281,6 +286,41 @@ func (v *EnhancedVCVerifier) verifyWorkflowVC(workflowVC types.WorkflowVC, execu
 			Description: fmt.Sprintf("Failed to parse workflow VC document: %v", err),
 		})
 		return result
+	}
+
+	// Verify workflow VC signature
+	if resolution, exists := v.didResolutions[workflowVCDoc.Issuer]; exists {
+		validSig, err := verifyWorkflowVCSignature(workflowVCDoc, resolution)
+		result.SignatureValid = err == nil && validSig
+		if err != nil {
+			result.Valid = false
+			result.Issues = append(result.Issues, VerificationIssue{
+				Type:        "workflow_signature_error",
+				Severity:    "critical",
+				Component:   "workflow_vc",
+				Field:       "proof",
+				Description: fmt.Sprintf("Failed to verify workflow VC signature: %v", err),
+			})
+		} else if !validSig {
+			result.Valid = false
+			result.Issues = append(result.Issues, VerificationIssue{
+				Type:        "workflow_signature_invalid",
+				Severity:    "critical",
+				Component:   "workflow_vc",
+				Field:       "proof",
+				Description: "Workflow VC signature is invalid",
+			})
+		}
+	} else {
+		result.SignatureValid = false
+		result.Valid = false
+		result.Issues = append(result.Issues, VerificationIssue{
+			Type:        "workflow_signature_missing_did",
+			Severity:    "critical",
+			Component:   "workflow_vc",
+			Field:       "issuer_did",
+			Description: fmt.Sprintf("Missing DID resolution for workflow issuer %s", workflowVCDoc.Issuer),
+		})
 	}
 
 	// Check component VC consistency

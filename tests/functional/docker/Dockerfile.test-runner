@@ -1,3 +1,30 @@
+FROM node:20-alpine AS ui-builder
+WORKDIR /app/web
+
+COPY control-plane/web/client/package*.json ./
+RUN --mount=type=cache,target=/root/.npm npm ci
+COPY control-plane/web/client/ .
+RUN npm run build
+
+FROM golang:1.24-bookworm AS af-cli-builder
+WORKDIR /build
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# Pre-download Go modules for caching
+COPY control-plane/go.mod control-plane/go.sum ./control-plane/
+RUN cd control-plane && go mod download
+
+# Build the AgentField CLI (af)
+COPY control-plane ./control-plane
+COPY --from=ui-builder /app/web/dist ./control-plane/web/client/dist
+RUN mkdir -p /build/bin && \
+    cd control-plane && \
+    go build -tags "embedded sqlite_fts5" -o /build/bin/af ./cmd/af
+
 FROM python:3.11-slim
 
 # Prevent Python from writing pyc files and buffering stdout/stderr
@@ -12,6 +39,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     wget \
     netcat-openbsd \
     && rm -rf /var/lib/apt/lists/*
+
+# Install the AgentField CLI built in the previous stage
+COPY --from=af-cli-builder /build/bin/af /usr/local/bin/af
+RUN ln -s /usr/local/bin/af /usr/local/bin/agentfield
 
 WORKDIR /app
 
@@ -43,4 +74,3 @@ WORKDIR /tests
 
 # Default command (will be overridden by docker-compose)
 CMD ["pytest", "-v"]
-
