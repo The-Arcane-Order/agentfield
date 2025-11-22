@@ -5591,6 +5591,10 @@ func (ls *LocalStorage) StoreAgentDIDWithComponents(ctx context.Context, agentID
 	}, 3)
 
 	if err != nil {
+		var dupErr *DuplicateDIDError
+		if errors.As(err, &dupErr) {
+			return dupErr
+		}
 		return fmt.Errorf("failed to store agent DID: %w", err)
 	}
 
@@ -5626,6 +5630,10 @@ func (ls *LocalStorage) StoreAgentDIDWithComponents(ctx context.Context, agentID
 		}, 3)
 
 		if err != nil {
+			var dupErr *DuplicateDIDError
+			if errors.As(err, &dupErr) {
+				return dupErr
+			}
 			return fmt.Errorf("failed to store component DID %d (%s): %w", i, component.ComponentName, err)
 		}
 	}

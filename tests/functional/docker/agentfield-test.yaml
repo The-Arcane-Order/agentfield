@@ -77,7 +77,25 @@ storage:
 
 features:
   did:
-    enabled: false
+    enabled: true
+    method: "did:key"
+    key_algorithm: "Ed25519"
+    derivation_method: "BIP32"
+    key_rotation_days: 90
+    vc_requirements:
+      require_vc_registration: true
+      require_vc_execution: true
+      require_vc_cross_agent: true
+      persist_execution_vc: true
+      store_input_output: false
+      hash_sensitive_data: true
+      storage_mode: "inline"
+    keystore:
+      type: "local"
+      path: "/data/agentfield/data/keys"
+      encryption: "AES-256-GCM"
+      backup_enabled: false
+      backup_interval: "24h"
 
 agents:
   discovery:
@@ -87,4 +105,3 @@ agents:
     auto_scale: false
     min_replicas: 1
     max_replicas: 5
-

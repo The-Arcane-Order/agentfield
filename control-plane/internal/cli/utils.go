@@ -12,6 +12,15 @@ import (
 
 // getAgentFieldHomeDir returns the AgentField home directory (~/.agentfield) and ensures it exists
 func getAgentFieldHomeDir() string {
+	if customHome := os.Getenv("AGENTFIELD_HOME"); customHome != "" {
+		if err := os.MkdirAll(customHome, 0755); err != nil {
+			PrintError(fmt.Sprintf("Failed to create AGENTFIELD_HOME directory: %v", err))
+			os.Exit(1)
+		}
+		ensureSubdirs(customHome)
+		return customHome
+	}
+
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		PrintError(fmt.Sprintf("Failed to get user home directory: %v", err))
@@ -26,7 +35,12 @@ func getAgentFieldHomeDir() string {
 		os.Exit(1)
 	}
 
-	// Ensure subdirectories exist
+	ensureSubdirs(agentfieldHome)
+
+	return agentfieldHome
+}
+
+func ensureSubdirs(agentfieldHome string) {
 	subdirs := []string{"packages", "logs", "config"}
 	for _, subdir := range subdirs {
 		if err := os.MkdirAll(filepath.Join(agentfieldHome, subdir), 0755); err != nil {
@@ -34,8 +48,6 @@ func getAgentFieldHomeDir() string {
 			os.Exit(1)
 		}
 	}
-
-	return agentfieldHome
 }
 
 // Professional CLI status symbols

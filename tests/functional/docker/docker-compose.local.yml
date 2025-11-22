@@ -8,6 +8,7 @@ services:
       AGENTFIELD_STORAGE_MODE: local
       AGENTFIELD_PORT: 8080
       AGENTFIELD_CONFIG_FILE: /etc/agentfield/agentfield-test.yaml
+      AGENTFIELD_HOME: /data/agentfield
     ports:
       - "8080:8080"
     volumes:
@@ -15,7 +16,7 @@ services:
       - ../docker/agentfield-test.yaml:/etc/agentfield/agentfield-test.yaml:ro
     networks:
       - agentfield-test
-    command: ["server", "--backend-only", "--port", "8080", "--config", "/etc/agentfield/agentfield-test.yaml", "--no-vc-execution"]
+    command: ["server", "--backend-only", "--port", "8080", "--config", "/etc/agentfield/agentfield-test.yaml", "--vc-execution"]
 
   test-runner:
     build:
@@ -32,6 +33,7 @@ services:
       TEST_AGENT_BIND_HOST: ${TEST_AGENT_BIND_HOST:-0.0.0.0}
       TEST_AGENT_CALLBACK_HOST: ${TEST_AGENT_CALLBACK_HOST:-test-runner}
       FUNCTIONAL_LOG_FILE: /tests/functional/logs/functional-tests.log
+      AGENTFIELD_HOME: /tmp/agentfield-cli
     volumes:
       - ../:/tests
     depends_on:
