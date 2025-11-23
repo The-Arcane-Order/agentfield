@@ -42,10 +42,13 @@ Most frameworks help you *prototype* (Day 1). AgentField helps you *operate* (Da
 Write standard Python (or Go). Get a production-grade distributed system automatically.
 
 ```python
-from agentfield import Agent
+from agentfield import Agent, AIConfig
 
 # 1. Define an Agent (It's just a microservice)
-app = Agent(node_id="researcher", model="gpt-4o")
+app = Agent(
+    node_id="researcher",
+    ai_config=AIConfig(model="gpt-4o")
+)
 
 # 2. Create a Skill (Deterministic code)
 @app.skill()
