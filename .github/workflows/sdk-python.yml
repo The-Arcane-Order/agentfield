@@ -50,7 +50,12 @@ jobs:
 
       - name: Run tests
         working-directory: sdk/python
-        run: pytest
+        run: |
+          if [ "${{ matrix.python-version }}" == "3.8" ]; then
+            pytest --no-cov
+          else
+            pytest
+          fi
 
   # Summary job that depends on all critical checks
   required-checks:
