@@ -5,6 +5,7 @@
 *.swp
 *.swo
 test-reports/
+.env
 
 # Go
 bin/
