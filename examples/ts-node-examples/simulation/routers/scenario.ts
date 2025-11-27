@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AgentRouter } from '../../../src/router/AgentRouter.js';
+import { AgentRouter } from '@agentfield/sdk';
 import {
   FactorGraphSchema,
   ScenarioAnalysisSchema,

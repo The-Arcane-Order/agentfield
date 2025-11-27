@@ -1,4 +1,4 @@
-import { AgentRouter } from '../../../src/router/AgentRouter.js';
+import { AgentRouter } from '@agentfield/sdk';
 import {
   EntityDecisionSchema,
   EntityProfileSchema,

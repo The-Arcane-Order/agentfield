@@ -1,8 +1,7 @@
 import dotenv from 'dotenv';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { AIConfig } from '../../src/types/agent.js';
-import { Agent } from '../../src/agent/Agent.js';
+import { Agent, type AIConfig } from '@agentfield/sdk';
 import {
   aggregationRouter,
   decisionRouter,

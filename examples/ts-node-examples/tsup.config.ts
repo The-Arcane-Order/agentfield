@@ -1,11 +1,10 @@
 import { defineConfig } from 'tsup';
 
 export default defineConfig({
-  entry: ['src/index.ts'],
+  entry: ['discovery-memory/main.ts', 'simulation/main.ts'],
   format: ['esm'],
-  dts: true,
   splitting: false,
+  dts: false,
   sourcemap: true,
-  clean: true,
-  treeshake: true
+  clean: true
 });

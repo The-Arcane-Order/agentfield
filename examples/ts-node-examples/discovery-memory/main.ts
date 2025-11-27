@@ -2,16 +2,16 @@
  * Discovery + vector memory example.
  *
  * Run with a control plane at AGENTFIELD_URL (defaults to http://localhost:8080):
- *   AGENT_ID=ts-discovery-demo npm run dev -- --entry examples/discovery-memory/main.ts
- * or with ts-node:
- *   AGENT_ID=ts-discovery-demo node --loader ts-node/esm examples/discovery-memory/main.ts
+ *   AGENT_ID=ts-discovery-demo npm run dev:discovery
+ * or with ts-node directly:
+ *   AGENT_ID=ts-discovery-demo node --loader ts-node/esm discovery-memory/main.ts
  *
  * The reasoner demonstrates:
  * - Workflow progress updates via ctx.workflow.progress()
  * - Storing/searching vectors with ctx.memory.setVector/searchVector()
  * - Discovering other agents via ctx.discover()
  */
-import { Agent, AgentRouter } from '../../src/index.js';
+import { Agent, AgentRouter } from '@agentfield/sdk';
 
 type DemoInput = {
   text: string;
@@ -19,6 +19,7 @@ type DemoInput = {
   queryEmbedding: number[];
   filters?: Record<string, any>;
   discoveryTags?: string[];
+  extraChunks?: Array<{ key: string; embedding: number[]; metadata?: Record<string, any> }>;
 };
 
 const router = new AgentRouter({ prefix: 'demo' });
@@ -26,13 +27,21 @@ const router = new AgentRouter({ prefix: 'demo' });
 router.reasoner<DemoInput, any>('discover-and-vector', async (ctx) => {
   await ctx.workflow.progress(5, { result: { stage: 'starting' } });
 
+  const storedKeys: string[] = [];
+
   // Store the input embedding in workflow-scoped memory
-  await ctx.memory.setVector(
-    `demo:${ctx.executionId}:chunk`,
-    ctx.input.embedding,
-    { text: ctx.input.text },
-    'workflow'
-  );
+  const primaryKey = `demo:${ctx.executionId}:chunk`;
+  await ctx.memory.setVector(primaryKey, ctx.input.embedding, { text: ctx.input.text }, 'workflow');
+  storedKeys.push(primaryKey);
+
+  // Optionally store extra chunks provided by the caller
+  if (Array.isArray(ctx.input.extraChunks)) {
+    for (const chunk of ctx.input.extraChunks) {
+      const key = chunk.key || `chunk:${storedKeys.length}`;
+      await ctx.memory.setVector(key, chunk.embedding, chunk.metadata, 'workflow');
+      storedKeys.push(key);
+    }
+  }
   await ctx.workflow.progress(25, { result: { stage: 'vector-stored' } });
 
   // Run a similarity search against the workflow scope
@@ -56,7 +65,20 @@ router.reasoner<DemoInput, any>('discover-and-vector', async (ctx) => {
 
   return {
     matches,
-    discovery: discovery.json ?? discovery.compact ?? discovery.xml
+    storedKeys,
+    discovery: discovery.json ?? discovery.compact ?? discovery.xml,
+    discoverySummary: discovery.json
+      ? {
+          totalAgents: discovery.json.totalAgents,
+          totalReasoners: discovery.json.totalReasoners,
+          totalSkills: discovery.json.totalSkills
+        }
+      : undefined,
+    workflow: {
+      executionId: ctx.executionId,
+      runId: ctx.runId,
+      workflowId: ctx.workflowId
+    }
   };
 });
 

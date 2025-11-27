@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AgentRouter } from '../../../src/router/AgentRouter.js';
+import { AgentRouter } from '@agentfield/sdk';
 import {
   EntityDecisionSchema,
   EntityProfileSchema,
@@ -9,7 +9,6 @@ import {
   type ScenarioAnalysis
 } from '../schemas.js';
 import { formatContext, parseWithSchema } from '../utils.js';
-import { z } from 'zod';
 
 export const decisionRouter = new AgentRouter({ prefix: 'decision' });
 
