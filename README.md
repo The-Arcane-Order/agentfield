@@ -217,7 +217,7 @@ export AGENT_CALLBACK_URL="http://host.docker.internal:8001"
 ```
 </details>
 
-**Next Steps:** [Build Your First Agent](https://agentfield.ai/guides/build-your-first-agent) | [Deploy to Production](https://agentfield.ai/guides/deployment/overview) | [Examples](https://agentfield.ai/examples)
+**Next Steps:** [Build Your First Agent](https://agentfield.ai/guides/getting-started/build-your-first-agent) | [Deploy to Production](https://agentfield.ai/guides/deployment/overview) | [Examples](https://agentfield.ai/examples)
 
 ---
 
@@ -260,7 +260,7 @@ curl -X POST http://localhost:8080/api/v1/execute/researcher.summarize \
 ```
 
 ### Enterprise Ready
-Cryptographic identity for every agent. Tamper-proof audit trails for every action. [Learn more about Identity & Trust](https://agentfield.ai/core-concepts/identity-and-trust).
+Cryptographic identity for every agent. Tamper-proof audit trails for every action. [Learn more about Identity & Trust](https://agentfield.ai/docs/core-concepts/identity-and-trust).
 
 ---
 
@@ -280,7 +280,7 @@ AgentField isn't a framework you extend. It's infrastructure you deploy on.
 
 **Not a DAG builder.** Agents decide what to do next—dynamically. The control plane tracks the execution graph automatically.
 
-**Not tool attachment.** You don't just give an LLM a bag of MCP tools and hope. You define **Reasoners** (AI logic) and **Skills** (deterministic code) with explicit boundaries. [Learn more](https://agentfield.ai/core-concepts/reasoners-and-skills).
+**Not tool attachment.** You don't just give an LLM a bag of MCP tools and hope. You define **Reasoners** (AI logic) and **Skills** (deterministic code) with explicit boundaries. [Learn more](https://agentfield.ai/docs/core-concepts/reasoners-and-skills).
 
 ---
 
@@ -317,7 +317,7 @@ AgentField gives every agent a [W3C Decentralized Identifier (DID)](https://www.
 curl http://localhost:8080/api/ui/v1/workflows/{workflow_id}/vc-chain
 ```
 
-For compliance teams: mathematical proof, not trust. [Full documentation](https://agentfield.ai/core-concepts/identity-and-trust).
+For compliance teams: mathematical proof, not trust. [Full documentation](https://agentfield.ai/docs/core-concepts/identity-and-trust).
 
 
 
@@ -351,7 +351,7 @@ If you are **Backend Engineers** shipping AI into production who want standard A
 **Agents are becoming part of production backends. They need identity, governance, and infrastructure. That's why AgentField exists.**
 
 - **[Documentation](https://agentfield.ai/docs)**
-- **[GitHub Discussions](https://github.com/agentfield/agentfield/discussions)**
+- **[GitHub Issues](https://github.com/Agent-Field/agentfield/issues)**
 - **[Twitter/X](https://x.com/agentfield_dev)**
 - **[Examples](https://agentfield.ai/examples)**
 
