@@ -65,27 +65,11 @@ class AgentFieldServerInfo:
     agentfield_home: Path
 
 
-def _find_control_plane_root() -> Optional[Path]:
-    """Find the control-plane directory, supporting multiple repo layouts."""
-    repo_root = Path(__file__).resolve().parents[4]
-
-    # Try different possible locations
-    candidates = [
-        repo_root / "control-plane",  # Current monorepo structure
-        repo_root / "apps" / "platform" / "agentfield",  # Legacy structure
-    ]
-
-    for candidate in candidates:
-        if candidate.exists() and (candidate / "cmd").exists():
-            return candidate
-
-    return None
-
-
 @pytest.fixture(scope="session")
 def agentfield_binary(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    agentfield_go_root = _find_control_plane_root()
-    if agentfield_go_root is None:
+    repo_root = Path(__file__).resolve().parents[4]
+    agentfield_go_root = repo_root / "apps" / "platform" / "agentfield"
+    if not agentfield_go_root.exists():
         pytest.skip("AgentField server sources not available in this checkout")
     build_dir = tmp_path_factory.mktemp("agentfield-server-bin")
     binary_name = (
@@ -126,9 +110,7 @@ def agentfield_binary(tmp_path_factory: pytest.TempPathFactory) -> Path:
         binary_path.chmod(0o755)
         return binary_path
 
-    # Try different cmd paths based on repo structure
-    cmd_path = "./cmd/af" if (agentfield_go_root / "cmd" / "af").exists() else "./cmd/agentfield"
-    build_cmd = ["go", "build", "-o", str(binary_path), cmd_path]
+    build_cmd = ["go", "build", "-o", str(binary_path), "./cmd/agentfield"]
     env = os.environ.copy()
     env["GOCACHE"] = str(tmp_path_factory.mktemp("go-cache"))
     env["GOMODCACHE"] = str(tmp_path_factory.mktemp("go-modcache"))
@@ -140,8 +122,8 @@ def agentfield_binary(tmp_path_factory: pytest.TempPathFactory) -> Path:
 def agentfield_server(
     tmp_path_factory: pytest.TempPathFactory, agentfield_binary: Path
 ) -> Generator[AgentFieldServerInfo, None, None]:
-    agentfield_go_root = _find_control_plane_root()
-    assert agentfield_go_root is not None  # Should not happen if agentfield_binary succeeded
+    repo_root = Path(__file__).resolve().parents[4]
+    agentfield_go_root = repo_root / "apps" / "platform" / "agentfield"
 
     agentfield_home = Path(tmp_path_factory.mktemp("agentfield-home"))
     data_dir = agentfield_home / "data"
