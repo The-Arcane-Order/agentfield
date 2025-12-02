@@ -13,17 +13,16 @@ from agentfield.client import AgentFieldClient
 @pytest.fixture(autouse=True)
 def ensure_event_loop():
     try:
-        loop = asyncio.get_event_loop()
-        had_loop = True
+        asyncio.get_event_loop()
+        loop = None
     except RuntimeError:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        had_loop = False
 
     try:
         yield
     finally:
-        if not had_loop:
+        if loop is not None:
             loop.close()
             asyncio.set_event_loop(None)
 
