@@ -6,6 +6,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 <!-- changelog:entries -->
 
+## [0.1.18] - 2025-12-03
+
+
+### Fixed
+
+- Fix(sdk): inject API key into all HTTP requests
+
+The Python SDK was not including the X-API-Key header in HTTP requests
+made through AgentFieldClient._async_request(), causing 401 errors when
+the control plane has authentication enabled.
+
+This fix injects the API key into request headers automatically when:
+- The client has an api_key configured
+- The header isn't already set (avoids overwriting explicit headers)
+
+Fixes async status updates and memory operations (vector search, etc.)
+that were failing with 401 Unauthorized.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com> (97673bc)
+
 ## [0.1.17] - 2025-12-03
 
 
