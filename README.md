@@ -230,7 +230,10 @@ af init my-agent  # No --defaults flag
 <summary><strong>Docker / Troubleshooting</strong></summary>
 
 If running AgentField in Docker, set a callback URL so the Control Plane can reach your agent:
-
+```bash
+docker run -p 8080:8080 ghcr.io/agent-field/agentfield-control-plane:latest
+```
+for agent nodes
 ```bash
 export AGENT_CALLBACK_URL="http://host.docker.internal:8001"
 ```
