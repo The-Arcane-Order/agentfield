@@ -356,7 +356,7 @@ For compliance teams: mathematical proof, not trust.
 
 📖 **[Read: IAM for AI Backends](https://agentfield.ai/blog/iam-ai-backends)** — Why OAuth can't secure autonomous software, and what replaces it.
 
-[Full documentation →](https://agentfield.ai/docs/core-concepts/identity-and-trust)
+[Full documentation →](https://agentfield.ai/blog/posts/iam-ai-backends)
 
 
 
