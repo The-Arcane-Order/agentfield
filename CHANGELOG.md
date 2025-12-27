@@ -6,6 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 <!-- changelog:entries -->
 
+## [0.1.26-rc.2] - 2025-12-27
+
+
+### Added
+
+- Feat(tests): add unit tests for vector memory handler functionality (#123) (9df214d)
+
+- Feat: Add AI-assisted contribution guidelines, task issue template, AI labeling workflow, security, and support policies. (87c9297)
+
 ## [0.1.26-rc.1] - 2025-12-23
 
 
