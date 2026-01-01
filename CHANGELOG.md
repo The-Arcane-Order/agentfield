@@ -6,6 +6,44 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 <!-- changelog:entries -->
 
+## [0.1.27-rc.1] - 2026-01-01
+
+
+### CI
+
+- Ci: disable AI label workflow for fork compatibility
+
+The AI label workflow fails on PRs from forked repositories because
+GITHUB_TOKEN lacks write permissions. Since many contributions come
+from forks, disabling the workflow until a proper solution (PAT or
+GitHub App) is implemented.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com> (6dbc908)
+
+
+
+### Other
+
+- Add explicit return type to useFilterState hook (#127)
+
+* Add explicit return type to useFilterState hook
+
+* fix(types): use Partial<ExecutionFilters> in UseFilterStateReturn
+
+The convertTagsToApiFormat function returns Partial<ExecutionFilters>,
+so the return type interface must match to avoid TypeScript errors.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+---------
+
+Co-authored-by: Abir Abbas <abirabbas1998@gmail.com>
+Co-authored-by: Claude Opus 4.5 <noreply@anthropic.com> (f2168e0)
+
 ## [0.1.26] - 2025-12-27
 
 ## [0.1.26-rc.3] - 2025-12-27
