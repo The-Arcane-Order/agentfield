@@ -6,6 +6,73 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 <!-- changelog:entries -->
 
+## [0.1.29-rc.1] - 2026-01-09
+
+
+### Added
+
+- Feat(ci): add contributor reminder and assignment tracking workflows (#132)
+
+Add automated system to remind assigned contributors and free up stale assignments:
+
+- contributor-reminders.yml: Scheduled daily check that:
+  - Sends friendly reminder at 7 days without activity
+  - Sends second reminder at 14 days with unassign warning
+  - Unassigns and re-labels as 'help wanted' at 21 days
+  - Skips issues with linked PRs or blocking labels
+  - Supports dry-run mode for testing
+
+- issue-assignment-tracking.yml: Real-time event handling that:
+  - Welcomes new assignees with timeline expectations
+  - Clears reminder labels when assignees comment
+  - Clears labels when assignee opens linked PR
+  - Auto-adds 'help wanted' when last assignee leaves
+
+This improves contributor experience by setting clear expectations
+while ensuring stale assignments don't block other contributors. (7bbac52)
+
+
+
+### Documentation
+
+- Docs: update Docker image references to Docker Hub (#134)
+
+* docs: update Docker image references to Docker Hub
+
+Update all references from ghcr.io/agent-field/agentfield-control-plane
+to agentfield/control-plane (Docker Hub).
+
+Files updated:
+- deployments/kubernetes/base/control-plane-deployment.yaml
+- deployments/helm/agentfield/values.yaml
+- examples/python_agent_nodes/rag_evaluation/docker-compose.yml
+- README.md
+- docs/RELEASE.md (includes new DOCKERHUB_* secrets documentation)
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+* fix: use real version numbers in RELEASE.md examples
+
+Update example commands to use actual versions that exist:
+- Docker: staging-0.1.28-rc.4 (not 0.1.19-rc.1)
+- Install script: v0.1.28 and v0.1.28-rc.4
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+---------
+
+Co-authored-by: Claude Opus 4.5 <noreply@anthropic.com> (feeaa21)
+
+
+
+### Other
+
+- Add test connection_manager (#135) (247da4d)
+
 ## [0.1.28] - 2026-01-06
 
 ## [0.1.28-rc.4] - 2026-01-06
