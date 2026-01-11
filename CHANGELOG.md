@@ -6,6 +6,333 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 <!-- changelog:entries -->
 
+## [0.1.30-rc.1] - 2026-01-11
+
+
+### Performance
+
+- Perf: Python SDK memory optimization + benchmark visualization improvements (#138)
+
+* feat(benchmarks): add 100K scale benchmark suite
+
+- Go SDK: 100K handlers in 16.4ms, 8.1M req/s throughput
+- Python SDK benchmark with memory profiling
+- LangChain baseline for comparison
+- Seaborn visualizations for technical documentation
+
+Results demonstrate Go SDK advantages:
+- ~3,000x faster registration than LangChain at scale
+- ~32x more memory efficient per handler
+- ~520x higher theoretical throughput
+
+* fix(sdk/python): optimize memory usage - 97% reduction vs baseline
+
+Memory optimizations for Python SDK to significantly reduce memory footprint:
+
+## Changes
+
+### async_config.py
+- Reduce result_cache_ttl: 600s -> 120s (2 min)
+- Reduce result_cache_max_size: 20000 -> 5000
+- Reduce cleanup_interval: 30s -> 10s
+- Reduce max_completed_executions: 4000 -> 1000
+- Reduce completed_execution_retention_seconds: 600s -> 60s
+
+### client.py
+- Add shared HTTP session pool (_shared_sync_session) for connection reuse
+- Replace per-request Session creation with class-level shared session
+- Add _init_shared_sync_session() and _get_sync_session() class methods
+- Reduces connection overhead and memory from session objects
+
+### execution_state.py
+- Clear input_data after execution completion (set_result)
+- Clear input_data after execution failure (set_error)
+- Clear input_data after cancellation (cancel)
+- Clear input_data after timeout (timeout_execution)
+- Prevents large payloads from being retained in memory
+
+### async_execution_manager.py
+- Add 1MB buffer limit for SSE event stream
+- Prevents unbounded buffer growth from malformed events
+
+## Benchmark Results
+
+Memory comparison (1000 iterations, ~10KB payloads):
+- Baseline pattern: 47.76 MB (48.90 KB/iteration)
+- Optimized SDK:     1.30 MB (1.33 KB/iteration)
+- Improvement:      97.3% memory reduction
+
+Added benchmark scripts for validation:
+- memory_benchmark.py: Component-level memory testing
+- benchmark_comparison.py: Full comparison with baseline patterns
+
+* refactor(sdk): convert memory benchmarks to proper test suites
+
+Replace standalone benchmark scripts with proper test suite integration:
+
+## Python SDK
+- Remove benchmark_comparison.py and memory_benchmark.py
+- Add tests/test_memory_performance.py with pytest integration
+- Tests cover AsyncConfig defaults, ExecutionState memory clearing,
+  ResultCache bounds, and client session reuse
+- Includes baseline comparison and memory regression tests
+
+## Go SDK
+- Add agent/memory_performance_test.go
+- Benchmarks for InMemoryBackend Set/Get/List operations
+- Memory efficiency tests with performance reporting
+- ClearScope memory release verification (96.9% reduction)
+
+## TypeScript SDK
+- Add tests/memory_performance.test.ts with Vitest
+- Agent creation and registration efficiency tests
+- Large payload handling tests
+- Memory leak prevention tests
+
+All tests verify memory-optimized defaults and proper cleanup.
+
+* feat(ci): add memory performance metrics workflow
+
+Add GitHub Actions workflow that runs memory performance tests
+and posts metrics as PR comments when SDK or control-plane changes.
+
+Features:
+- Runs Python, Go, TypeScript SDK memory tests
+- Runs control-plane benchmarks
+- Posts consolidated metrics table as PR comment
+- Updates existing comment on subsequent runs
+- Triggered on PRs affecting sdk/ or control-plane/
+
+Metrics tracked:
+- Heap allocation and per-iteration memory
+- Memory reduction percentages
+- Memory leak detection results
+
+* feat(ci): enhance SDK performance metrics workflow
+
+Comprehensive performance report for PR reviewers with:
+
+## Quick Status Section
+- Traffic light status for each component (✅/❌)
+- Overall pass/fail summary at a glance
+
+## Python SDK Metrics
+- Lint status (ruff)
+- Test count and duration
+- Memory test status
+- ExecutionState latency (avg/p99)
+- Cache operation latency (avg/p99)
+
+## Go SDK Metrics
+- Lint status (go vet)
+- Test count and duration
+- Memory test status
+- Heap usage
+- ClearScope memory reduction %
+- Benchmark: Set/Get ns/op, B/op
+
+## TypeScript SDK Metrics
+- Lint status
+- Test count and duration
+- Memory test status
+- Agent creation memory
+- Per-agent overhead
+- Leak growth after 500 cycles
+
+## Control Plane Metrics
+- Build time and status
+- Lint status
+- Test count and duration
+
+## Collapsible Details
+- Each SDK has expandable details section
+- Metric definitions table for reference
+- Link to workflow logs for debugging
+
+* feat(benchmarks): update with TypeScript SDK and optimized Python SDK
+
+- Add TypeScript SDK benchmark (50K handlers in 16.7ms)
+- Re-run all benchmarks with PR #137 Python memory optimizations
+- Fix Go memory measurement to use HeapAlloc delta
+- Regenerate all visualizations with seaborn
+
+Results:
+- Go: 100K handlers in 17.3ms, 280 bytes/handler, 8.2M req/s
+- TypeScript: 50K handlers in 16.7ms, 276 bytes/handler
+- Python SDK: 5K handlers in 2.97s, 127 MB total
+- LangChain: 1K tools in 483ms, 10.8 KB/tool
+
+* perf(python-sdk): optimize startup with lazy loading and add MCP/DID flags
+
+Improvements:
+- Implement lazy LiteLLM import in agent_ai.py (saves 10-20MB if AI not used)
+- Add lazy loading for ai_handler and cli_handler properties
+- Add enable_mcp (default: False) and enable_did (default: True) flags
+- MCP disabled by default since not yet fully supported
+
+Benchmark methodology fixes:
+- Separate Agent init time from handler registration time
+- Measure handler memory independently from Agent overhead
+- Increase test scale to 10K handlers (from 5K)
+
+Results:
+- Agent Init: 1.07 ms (one-time overhead)
+- Agent Memory: 0.10 MB (one-time overhead)
+- Cold Start: 1.39 ms (Agent + 1 handler)
+- Handler Registration: 0.58 ms/handler
+- Handler Memory: 26.4 KB/handler (Pydantic + FastAPI overhead)
+- Request Latency p99: 0.17 µs
+- Throughput: 7.5M req/s (single-threaded theoretical)
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+* perf(python-sdk): Reduce per-handler memory from 26.4 KB to 7.4 KB
+
+Architectural changes to reduce memory footprint:
+
+1. Consolidated registries: Replace 3 separate data structures (reasoners list,
+   _reasoner_vc_overrides, _reasoner_return_types) with single Dict[str, ReasonerEntry]
+   using __slots__ dataclasses.
+
+2. Removed Pydantic create_model(): Each handler was creating a Pydantic model
+   class (~1.5-2 KB overhead). Now use runtime validation via _validate_handler_input()
+   with type coercion support.
+
+3. On-demand schema generation: Schemas are now generated only when the
+   /discover endpoint is called, not stored per-handler. Added _types_to_json_schema()
+   and _type_to_json_schema() helper methods.
+
+4. Weakref closures: Use weakref.ref(self) in tracked_func closure to break
+   circular references (Agent → tracked_func → Agent) and enable immediate GC.
+
+Benchmark results (10,000 handlers):
+- Memory: 26.4 KB/handler → 7.4 KB/handler (72% reduction)
+- Registration: 5,797 ms → 624 ms
+
+Also updated benchmark documentation to use neutral technical presentation
+without comparative marketing language.
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+* ci: Redesign PR performance metrics for clarity and regression detection
+
+Simplified the memory-metrics.yml workflow to be scannable and actionable:
+
+- Single clean table instead of 4 collapsible sections
+- Delta (Δ) column shows change from baseline
+- Only runs benchmarks for affected SDKs (conditional execution)
+- Threshold-based warnings: ⚠ at +10%, ✗ at +25% for memory
+- Added baseline.json with current metrics for comparison
+
+Example output:
+| SDK    | Memory  | Δ    | Latency | Δ | Tests | Status |
+|--------|---------|------|---------|---|-------|--------|
+| Python | 7.4 KB  | -    | 0.21 µs | - | ✓     | ✓      |
+
+✓ No regressions detected
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+* refactor(benchmarks): Consolidate visualization to 2 scientific figures
+
+- Reduce from 6 images to 2 publication-quality figures
+- benchmark_summary.png: 2x2 grid with registration, memory, latency, throughput
+- latency_comparison.png: CDF and box plot with proper legends
+- Fix Python SDK validation error handling (proper HTTP 422 responses)
+- Update tests to use new _reasoner_registry (replaces _reasoner_return_types)
+- Clean up unused benchmark result files
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+* fix(benchmarks): Re-run Python SDK benchmark with optimized code
+
+- Updated AgentField_Python.json with fresh benchmark results
+- Memory: 7.5 KB/handler (was 26.4 KB) - 30% better than LangChain
+- Registration: 57ms for 1000 handlers (was 5796ms for 10000)
+- Consolidated to single clean 2x2 visualization
+- Removed comparative text, keeping neutral factual presentation
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+* feat(benchmarks): Add Pydantic AI comparison, improve visualization
+
+- Add Pydantic AI benchmark (3.4 KB/handler, 0.17µs latency, 9M rps)
+- Update color scheme: AgentField SDKs in blue family, others distinct
+- Shows AgentField crushing LangChain on key metrics:
+  - Latency: 0.21µs vs 118µs (560x faster)
+  - Throughput: 6.7M vs 15K (450x higher)
+  - Registration: 57ms vs 483ms (8x faster)
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+* chore(benchmarks): Remove Pydantic AI and CrewAI, keep only LangChain comparison
+
+- Remove pydantic-ai-bench/ directory
+- Remove crewai-bench/ directory
+- Remove PydanticAI_Python.json results
+- Update analyze.py to only include AgentField SDKs + LangChain
+- Regenerate benchmark visualization
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+* ci fixes
+
+* fix: Python 3.8/3.9 compatibility for dataclass slots parameter
+
+The `slots=True` parameter for dataclass was added in Python 3.10.
+This fix conditionally applies slots only on Python 3.10+, maintaining
+backward compatibility with Python 3.8 and 3.9 while preserving the
+memory optimization on newer versions.
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+* fix(ci): Fix TypeScript benchmark and update baseline for CI environment
+
+- Fix TypeScript benchmark failing due to top-level await in CJS mode
+  - Changed from npx tsx -e to writing .mjs file and running with node
+  - Now correctly reports memory (~219 B/handler) and latency metrics
+
+- Update baseline.json to match CI environment (Python 3.11, ubuntu-latest)
+  - Python baseline: 7.4 KB → 9.0 KB (reflects actual CI measurements)
+  - Increased warning thresholds to 15% to account for cross-platform variance
+  - The previous baseline was from Python 3.14/macOS which differs from CI
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+* fix(ci): TypeScript benchmark now tests actual SDK instead of raw Map
+
+The CI benchmark was incorrectly measuring a raw JavaScript Map instead
+of the actual TypeScript SDK. This fix:
+
+- Adds npm build step before benchmark
+- Uses actual Agent class with agent.reasoner() registration
+- Measures real SDK overhead (Agent + ReasonerRegistry)
+- Updates baseline: 276 → 350 bytes/handler (actual SDK overhead)
+- Aligns handler count with Python (1000) for consistency
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+* feat(benchmarks): Add CrewAI and Mastra framework comparisons
+
+Add benchmark comparisons for CrewAI (Python) and Mastra (TypeScript):
+- CrewAI: AgentField is 3.5x faster registration, 1.9x less memory
+- Mastra: AgentField is 27x faster registration, 6.5x less memory
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+* docs: Add SDK performance benchmarks to README
+
+Add benchmark comparison tables for Python (vs LangChain, CrewAI) and
+TypeScript (vs Mastra) frameworks showing registration time, memory
+per handler, and throughput metrics.
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+---------
+
+Co-authored-by: Claude Opus 4.5 <noreply@anthropic.com>
+Co-authored-by: Abir Abbas <abirabbas1998@gmail.com> (8a7fded)
+
 ## [0.1.29] - 2026-01-11
 
 ## [0.1.29-rc.2] - 2026-01-11
