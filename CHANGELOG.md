@@ -6,6 +6,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 <!-- changelog:entries -->
 
+## [0.1.31-rc.1] - 2026-01-12
+
+
+### Fixed
+
+- Fix(server): add public /health endpoint for load balancer health checks
+
+Add a root-level /health endpoint that bypasses API key authentication,
+enabling load balancers and container orchestration platforms to perform
+health checks without credentials.
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com> (f90ef0b)
+
 ## [0.1.30] - 2026-01-11
 
 ## [0.1.30-rc.1] - 2026-01-11
