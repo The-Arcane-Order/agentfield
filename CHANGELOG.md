@@ -6,6 +6,159 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 
 <!-- changelog:entries -->
 
+## [0.1.33-rc.1] - 2026-01-21
+
+
+### Added
+
+- Feat: add Railway-deployable init-example agent (#151)
+
+* feat(deploy): add Railway template for one-click deployment
+
+Add Railway configuration for easy deployment of the control plane with PostgreSQL:
+- railway.toml and railway.json at repo root for Railway auto-detection
+- Dockerfile reference to existing control-plane build
+- Health check configuration (/api/v1/health)
+- README with setup instructions and deploy button
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+* fix: use correct CLI installation command
+
+* fix: add cache mount IDs for Railway compatibility
+
+Railway's Docker builder requires explicit id parameters for cache mounts.
+Added id=npm-cache, id=go-build-cache, and id=go-mod-cache to the
+respective cache mount directives.
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+* fix: remove BuildKit cache mounts for Railway compatibility
+
+Railway's builder has specific cache mount requirements that differ from
+standard BuildKit. Removing cache mounts entirely - Railway has its own
+layer caching, so builds still benefit from caching.
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+* feat: add Railway-deployable init-example agent
+
+- Add standalone package.json with npm-published @agentfield/sdk
+- Add Dockerfile for Railway deployment
+- Update README with step-by-step agent deployment instructions
+- Include curl examples to test echo and sentiment reasoners
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+* Add railway.toml for init-example to disable healthcheck
+
+* Revert: remove railway.toml from init-example
+
+* Add railway.toml to init-example to override root config
+
+* forward API key
+
+* Update Railway deployment to use Docker images
+
+- Remove railway.toml files (now using Docker images directly)
+- Add AGENTFIELD_API_KEY and AGENT_CALLBACK_URL support to init-example
+- Rewrite Railway README for Docker-based deployment workflow
+- Document critical AGENT_CALLBACK_URL for agent health checks
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+* chore: bump @agentfield/sdk to 0.1.32
+
+* debug: add diagnostic logging to init-example
+
+* remove logs
+
+---------
+
+Co-authored-by: Claude <noreply@anthropic.com> (86289b8)
+
+
+
+### Fixed
+
+- Fix(sdk): prevent socket exhaustion from connection leak (#153)
+
+* feat(deploy): add Railway template for one-click deployment
+
+Add Railway configuration for easy deployment of the control plane with PostgreSQL:
+- railway.toml and railway.json at repo root for Railway auto-detection
+- Dockerfile reference to existing control-plane build
+- Health check configuration (/api/v1/health)
+- README with setup instructions and deploy button
+
+Co-Authored-By: Claude <noreply@anthropic.com>
+
+* fix: use correct CLI installation command
+
+* fix: add cache mount IDs for Railway compatibility
+
+Railway's Docker builder requires explicit id parameters for cache mounts.
+Added id=npm-cache, id=go-build-cache, and id=go-mod-cache to the
+respective cache mount directives.
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+* fix: remove BuildKit cache mounts for Railway compatibility
+
+Railway's builder has specific cache mount requirements that differ from
+standard BuildKit. Removing cache mounts entirely - Railway has its own
+layer caching, so builds still benefit from caching.
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+* feat: add Railway-deployable init-example agent
+
+- Add standalone package.json with npm-published @agentfield/sdk
+- Add Dockerfile for Railway deployment
+- Update README with step-by-step agent deployment instructions
+- Include curl examples to test echo and sentiment reasoners
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+* Add railway.toml for init-example to disable healthcheck
+
+* Revert: remove railway.toml from init-example
+
+* Add railway.toml to init-example to override root config
+
+* forward API key
+
+* Update Railway deployment to use Docker images
+
+- Remove railway.toml files (now using Docker images directly)
+- Add AGENTFIELD_API_KEY and AGENT_CALLBACK_URL support to init-example
+- Rewrite Railway README for Docker-based deployment workflow
+- Document critical AGENT_CALLBACK_URL for agent health checks
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+* chore: bump @agentfield/sdk to 0.1.32
+
+* debug: add diagnostic logging to init-example
+
+* remove logs
+
+* fix(sdk): prevent socket exhaustion from connection leak
+
+- Add shared HTTP agents with connection pooling (maxSockets: 10)
+- Enable keepAlive to reuse connections instead of creating new ones
+- Fix sendNote() which created new axios instance on every call
+- Add 30s timeout to all HTTP requests
+
+Fixes agent going offline after running for extended periods due to
+56K+ leaked TCP connections exhausting available sockets.
+
+Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+
+---------
+
+Co-authored-by: Claude <noreply@anthropic.com> (8a64a48)
+
 ## [0.1.32] - 2026-01-21
 
 ## [0.1.32-rc.4] - 2026-01-21
