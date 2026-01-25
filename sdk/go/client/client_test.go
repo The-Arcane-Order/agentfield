@@ -106,7 +106,7 @@ func TestRegisterNode(t *testing.T) {
 		serverResponse func(w http.ResponseWriter, r *http.Request)
 		wantErr        bool
 		checkResponse  func(t *testing.T, resp *types.NodeRegistrationResponse)
-		checkRequest  func(t *testing.T, r *http.Request)
+		checkRequest   func(t *testing.T, r *http.Request)
 	}{
 		{
 			name: "successful registration",
@@ -221,10 +221,10 @@ func TestRegisterNode(t *testing.T) {
 
 func TestUpdateStatus(t *testing.T) {
 	tests := []struct {
-		name          string
+		name           string
 		serverResponse func(w http.ResponseWriter, r *http.Request)
-		wantErr       bool
-		checkResponse func(t *testing.T, resp *types.LeaseResponse)
+		wantErr        bool
+		checkResponse  func(t *testing.T, resp *types.LeaseResponse)
 	}{
 		{
 			name: "successful status update",
@@ -397,6 +397,58 @@ func TestDo_ErrorHandling(t *testing.T) {
 			},
 		},
 		{
+			name: "401 Unauthorized",
+			serverResponse: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusUnauthorized)
+				w.Write([]byte(`{"error": "unauthorized client"}`))
+			},
+			wantErr: true,
+			checkError: func(t *testing.T, err error) {
+				apiErr, ok := err.(*APIError)
+				assert.True(t, ok)
+				assert.Equal(t, 401, apiErr.StatusCode)
+			},
+		},
+		{
+			name: "403 Forbidden",
+			serverResponse: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusForbidden)
+				w.Write([]byte(`{"error": "insufficient permissions"}`))
+			},
+			wantErr: true,
+			checkError: func(t *testing.T, err error) {
+				apiErr, ok := err.(*APIError)
+				assert.True(t, ok)
+				assert.Equal(t, 403, apiErr.StatusCode)
+			},
+		},
+		{
+			name: "404 Not Found",
+			serverResponse: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusNotFound)
+				w.Write([]byte(`{"error": "agent not found"}`))
+			},
+			wantErr: true,
+			checkError: func(t *testing.T, err error) {
+				apiErr, ok := err.(*APIError)
+				assert.True(t, ok)
+				assert.Equal(t, 404, apiErr.StatusCode)
+			},
+		},
+		{
+			name: "429 Rate Limit - Too many Request",
+			serverResponse: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusTooManyRequests)
+				w.Write([]byte("Rate limit exceeded. Try again in 60s"))
+			},
+			wantErr: true,
+			checkError: func(t *testing.T, err error) {
+				apiErr := err.(*APIError)
+				assert.Equal(t, 429, apiErr.StatusCode)
+				assert.Contains(t, string(apiErr.Body), "Rate limit")
+			},
+		},
+		{
 			name: "500 Internal Server Error",
 			serverResponse: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusInternalServerError)
@@ -407,6 +459,32 @@ func TestDo_ErrorHandling(t *testing.T) {
 				apiErr, ok := err.(*APIError)
 				assert.True(t, ok)
 				assert.Equal(t, 500, apiErr.StatusCode)
+			},
+		},
+		{
+			name: "502 Bad Gateway",
+			serverResponse: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusBadGateway)
+				w.Write([]byte(`{"error": "server error"}`))
+			},
+			wantErr: true,
+			checkError: func(t *testing.T, err error) {
+				apiErr, ok := err.(*APIError)
+				assert.True(t, ok)
+				assert.Equal(t, 502, apiErr.StatusCode)
+			},
+		},
+		{
+			name: "503 Service Unavailable",
+			serverResponse: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusServiceUnavailable)
+				w.Write([]byte(`{"error": "agent unavailable"}`))
+			},
+			wantErr: true,
+			checkError: func(t *testing.T, err error) {
+				apiErr, ok := err.(*APIError)
+				assert.True(t, ok)
+				assert.Equal(t, 503, apiErr.StatusCode)
 			},
 		},
 		{
@@ -451,10 +529,10 @@ func TestDo_ErrorHandling(t *testing.T) {
 
 func TestDo_URLConstruction(t *testing.T) {
 	tests := []struct {
-		name       string
-		baseURL    string
-		endpoint   string
-		wantPath   string
+		name     string
+		baseURL  string
+		endpoint string
+		wantPath string
 	}{
 		{
 			name:     "simple base URL",
@@ -547,6 +625,73 @@ func TestDo_RequestHeaders(t *testing.T) {
 	// Test without body
 	err = client.do(context.Background(), http.MethodGet, "/test", nil, nil)
 	assert.NoError(t, err)
+}
+
+func TestAPIError_UnmarshalJSON(t *testing.T) {
+	tests := []struct {
+		name     string
+		jsonBody string
+		wantErr  bool
+	}{
+		{
+			name:     "valid APIError JSON",
+			jsonBody: `{"error":"invalid input","code":"BAD_REQUEST"}`,
+			wantErr:  false,
+		},
+		{
+			name:     "malformed JSON",
+			jsonBody: `{"error":"test" invalid}`,
+			wantErr:  true,
+		},
+		{
+			name:     "empty object",
+			jsonBody: `{}`,
+			wantErr:  false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var apiErr APIError
+			err := json.Unmarshal([]byte(tt.jsonBody), &apiErr)
+
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+				assert.Nil(t, apiErr.Body)
+				assert.Equal(t, 0, apiErr.StatusCode)
+			}
+		})
+	}
+}
+
+func TestClient_NetworkErrors(t *testing.T) {
+	// Use invalid host
+	client, err := New("http://nonexistent.invalid:9999")
+	require.NoError(t, err)
+
+	var resp types.LeaseResponse
+	err = client.do(context.Background(), http.MethodGet, "/test", nil, &resp)
+	assert.Error(t, err)
+}
+
+func TestClient_ContextTimeout(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(100 * time.Millisecond)
+	}))
+	defer server.Close()
+
+	client, err := New(server.URL)
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
+	defer cancel()
+
+	var resp types.LeaseResponse
+	err = client.do(ctx, http.MethodGet, "/test", nil, &resp)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "context deadline exceeded")
 }
 
 func intPtr(i int) *int {
