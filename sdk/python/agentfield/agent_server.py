@@ -900,32 +900,20 @@ class AgentServer:
             # Check AGENT_CALLBACK_URL environment variable before defaulting to localhost
             env_callback_url = os.getenv("AGENT_CALLBACK_URL")
             if env_callback_url:
-                # Parse the environment variable URL to extract the hostname
-                try:
-                    parsed = urllib.parse.urlparse(env_callback_url)
-                    if parsed.hostname:
-                        self.agent.base_url = (
-                            f"{parsed.scheme or 'http'}://{parsed.hostname}:{port}"
-                        )
-                        if self.agent.dev_mode:
-                            log_debug(
-                                f"Using AGENT_CALLBACK_URL from environment: {self.agent.base_url}"
-                            )
-                    else:
-                        # Invalid URL in env var, fall back to localhost
-                        self.agent.base_url = f"http://localhost:{port}"
-                except Exception:
-                    # Failed to parse env var, fall back to localhost
-                    self.agent.base_url = f"http://localhost:{port}"
+                # Use the environment URL as-is (no port injection)
+                self.agent.base_url = env_callback_url.rstrip("/")
+                if self.agent.dev_mode:
+                    log_debug(
+                        f"Using AGENT_CALLBACK_URL from environment: {self.agent.base_url}"
+                    )
             else:
                 # No env var set, use localhost
                 self.agent.base_url = f"http://localhost:{port}"
         else:
-            # Update port in existing base_url if needed
+            # Update port in existing base_url only for local dev hosts
             parsed = urllib.parse.urlparse(self.agent.base_url)
-            if parsed.port != port:
-                # Update the port in the existing URL, but preserve the hostname
-                self.agent.base_url = f"{parsed.scheme}://{parsed.hostname}:{port}"
+            if parsed.hostname in {"localhost", "127.0.0.1", "0.0.0.0"} and parsed.port != port:
+                self.agent.base_url = f"{parsed.scheme or 'http'}://{parsed.hostname}:{port}"
                 if self.agent.dev_mode:
                     log_debug(f"Updated port in callback URL: {self.agent.base_url}")
             elif self.agent.dev_mode:
