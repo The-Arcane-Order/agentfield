@@ -96,7 +96,8 @@ func NewAgentFieldServer(cfg *config.Config) (*AgentFieldServer, error) {
 		return nil, err
 	}
 
-	Router := gin.Default()
+	Router := gin.New()
+	Router.Use(gin.Recovery())
 
 	// Sync installed.yaml to database for package visibility
 	_ = SyncPackagesFromRegistry(agentfieldHome, storageProvider)
@@ -626,19 +627,26 @@ func (s *AgentFieldServer) setupRoutes() {
 
 	s.Router.Use(cors.New(corsConfig))
 
-	// Add request logging middleware
-	s.Router.Use(gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
-		return fmt.Sprintf("%s - [%s] \"%s %s %s %d %s \"%s\" %s\"\n",
-			param.ClientIP,
-			param.TimeStamp.Format(time.RFC1123),
-			param.Method,
-			param.Path,
-			param.Request.Proto,
-			param.StatusCode,
-			param.Latency,
-			param.Request.UserAgent(),
-			param.ErrorMessage,
-		)
+	// Add request logging middleware (skip noisy heartbeat/health paths)
+	s.Router.Use(gin.LoggerWithConfig(gin.LoggerConfig{
+		SkipPaths: []string{"/health", "/metrics"},
+		Formatter: func(param gin.LogFormatterParams) string {
+			// Also skip heartbeat paths that contain the keyword
+			if strings.Contains(param.Path, "/heartbeat") {
+				return ""
+			}
+			return fmt.Sprintf("%s - [%s] \"%s %s %s %d %s \"%s\" %s\"\n",
+				param.ClientIP,
+				param.TimeStamp.Format(time.RFC1123),
+				param.Method,
+				param.Path,
+				param.Request.Proto,
+				param.StatusCode,
+				param.Latency,
+				param.Request.UserAgent(),
+				param.ErrorMessage,
+			)
+		},
 	}))
 
 	// Add timeout middleware for all routes (1 hour for long-running executions)

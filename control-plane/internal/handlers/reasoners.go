@@ -33,6 +33,55 @@ func persistWorkflowExecution(ctx context.Context, storageProvider storage.Stora
 	}
 }
 
+// persistExecutionRecord creates an Execution record alongside the WorkflowExecution
+// so that legacy skill/reasoner calls also appear in the executions tab of the UI.
+func persistExecutionRecord(ctx context.Context, storageProvider storage.StorageProvider, wfExec *types.WorkflowExecution, targetType string) {
+	now := time.Now().UTC()
+	exec := &types.Execution{
+		ExecutionID: wfExec.ExecutionID,
+		RunID:       wfExec.WorkflowID,
+		AgentNodeID: wfExec.AgentNodeID,
+		ReasonerID:  wfExec.ReasonerID,
+		NodeID:      wfExec.AgentNodeID,
+		Status:      wfExec.Status,
+		StartedAt:   wfExec.StartedAt,
+		CreatedAt:   wfExec.CreatedAt,
+		UpdatedAt:   now,
+	}
+	if wfExec.InputData != nil {
+		exec.InputPayload = wfExec.InputData
+	}
+	if wfExec.OutputData != nil {
+		exec.ResultPayload = wfExec.OutputData
+	}
+	if wfExec.SessionID != nil {
+		exec.SessionID = wfExec.SessionID
+	}
+	if wfExec.ActorID != nil {
+		exec.ActorID = wfExec.ActorID
+	}
+	if wfExec.ParentExecutionID != nil {
+		exec.ParentExecutionID = wfExec.ParentExecutionID
+	}
+	if wfExec.CompletedAt != nil {
+		exec.CompletedAt = wfExec.CompletedAt
+	}
+	if wfExec.DurationMS != nil {
+		exec.DurationMS = wfExec.DurationMS
+	}
+	if wfExec.ErrorMessage != nil {
+		exec.ErrorMessage = wfExec.ErrorMessage
+	}
+
+	if err := storageProvider.CreateExecutionRecord(ctx, exec); err != nil {
+		logger.Logger.Warn().
+			Err(err).
+			Str("execution_id", exec.ExecutionID).
+			Str("target_type", targetType).
+			Msg("failed to persist execution record for legacy handler (non-fatal)")
+	}
+}
+
 // ExecuteReasonerResponse represents the response from executing a reasoner
 type ExecuteReasonerResponse struct {
 	Result    interface{} `json:"result"`
@@ -231,6 +280,7 @@ func ExecuteReasonerHandler(storageProvider storage.StorageProvider) gin.Handler
 				workflowExecution.DurationMS = &duration
 				workflowExecution.UpdatedAt = endTime
 				persistWorkflowExecution(ctx, storageProvider, workflowExecution)
+				persistExecutionRecord(ctx, storageProvider, workflowExecution, "reasoner")
 
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to encode serverless payload"})
 				return
@@ -249,6 +299,7 @@ func ExecuteReasonerHandler(storageProvider storage.StorageProvider) gin.Handler
 			workflowExecution.DurationMS = &duration
 			workflowExecution.UpdatedAt = endTime
 			persistWorkflowExecution(ctx, storageProvider, workflowExecution)
+			persistExecutionRecord(ctx, storageProvider, workflowExecution, "reasoner")
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create agent request"})
 			return
 		}
@@ -306,6 +357,7 @@ func ExecuteReasonerHandler(storageProvider storage.StorageProvider) gin.Handler
 
 			// Store execution record
 			persistWorkflowExecution(ctx, storageProvider, workflowExecution)
+			persistExecutionRecord(ctx, storageProvider, workflowExecution, "reasoner")
 
 			c.JSON(http.StatusServiceUnavailable, gin.H{
 				"error": fmt.Sprintf("failed to call agent node: %v", err),
@@ -329,6 +381,7 @@ func ExecuteReasonerHandler(storageProvider storage.StorageProvider) gin.Handler
 
 			// Store execution record
 			persistWorkflowExecution(ctx, storageProvider, workflowExecution)
+			persistExecutionRecord(ctx, storageProvider, workflowExecution, "reasoner")
 
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to read agent response"})
 			return
@@ -354,6 +407,7 @@ func ExecuteReasonerHandler(storageProvider storage.StorageProvider) gin.Handler
 
 			// Store execution record
 			persistWorkflowExecution(ctx, storageProvider, workflowExecution)
+			persistExecutionRecord(ctx, storageProvider, workflowExecution, "reasoner")
 
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to parse agent response"})
 			return
@@ -372,6 +426,7 @@ func ExecuteReasonerHandler(storageProvider storage.StorageProvider) gin.Handler
 		// Store execution record
 		// Store execution record
 		persistWorkflowExecution(ctx, storageProvider, workflowExecution)
+		persistExecutionRecord(ctx, storageProvider, workflowExecution, "reasoner")
 
 		// Set response headers
 		c.Header("X-Workflow-ID", workflowID)
@@ -541,6 +596,7 @@ func ExecuteSkillHandler(storageProvider storage.StorageProvider) gin.HandlerFun
 			workflowExecution.DurationMS = &duration
 			workflowExecution.UpdatedAt = endTime
 			persistWorkflowExecution(ctx, storageProvider, workflowExecution)
+			persistExecutionRecord(ctx, storageProvider, workflowExecution, "skill")
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create agent request"})
 			return
 		}
@@ -595,6 +651,7 @@ func ExecuteSkillHandler(storageProvider storage.StorageProvider) gin.HandlerFun
 
 			// Store execution record
 			persistWorkflowExecution(ctx, storageProvider, workflowExecution)
+			persistExecutionRecord(ctx, storageProvider, workflowExecution, "skill")
 
 			c.JSON(http.StatusServiceUnavailable, gin.H{
 				"error": fmt.Sprintf("failed to call agent node: %v", err),
@@ -618,6 +675,7 @@ func ExecuteSkillHandler(storageProvider storage.StorageProvider) gin.HandlerFun
 
 			// Store execution record
 			persistWorkflowExecution(ctx, storageProvider, workflowExecution)
+			persistExecutionRecord(ctx, storageProvider, workflowExecution, "skill")
 
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to read agent response"})
 			return
@@ -638,6 +696,7 @@ func ExecuteSkillHandler(storageProvider storage.StorageProvider) gin.HandlerFun
 
 			// Store execution record
 			persistWorkflowExecution(ctx, storageProvider, workflowExecution)
+			persistExecutionRecord(ctx, storageProvider, workflowExecution, "skill")
 
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to parse agent response"})
 			return
@@ -655,6 +714,7 @@ func ExecuteSkillHandler(storageProvider storage.StorageProvider) gin.HandlerFun
 
 		// Store execution record
 		persistWorkflowExecution(ctx, storageProvider, workflowExecution)
+		persistExecutionRecord(ctx, storageProvider, workflowExecution, "skill")
 
 		// Set response headers
 		c.Header("X-Workflow-ID", workflowID)
