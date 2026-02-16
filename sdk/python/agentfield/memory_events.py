@@ -84,7 +84,7 @@ class MemoryEventClient:
     """Enhanced memory event client with pattern-based subscriptions and event history."""
 
     def __init__(self, base_url: str, execution_context, api_key: Optional[str] = None):
-        self.base_url = base_url.replace("http", "ws")
+        self.base_url = base_url.rstrip("/").replace("http", "ws")
         self.execution_context = execution_context
         self.api_key = api_key
         self.websocket: Optional[websockets.WebSocketClientProtocol] = None
