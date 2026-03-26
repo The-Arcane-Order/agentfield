@@ -476,6 +476,15 @@ class Agent(FastAPI):
         """
         super().__init__(**kwargs)
 
+        # Add CORS middleware so agents can be called from browser frontends
+        from fastapi.middleware.cors import CORSMiddleware
+        self.add_middleware(
+            CORSMiddleware,
+            allow_origins=["*"],
+            allow_methods=["*"],
+            allow_headers=["*"],
+        )
+
         self.node_id = node_id
         self.agentfield_server = agentfield_server
         self.version = version
